@@ -1,0 +1,6 @@
+logging:
+  level: DEBUG
+  developmentMode: false
+
+server:
+  port: 8079
