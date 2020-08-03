@@ -19,10 +19,22 @@ type Server struct {
 	ShutdownPeriod time.Duration
 }
 
+// Mqtt configuration structure.
+type Mqtt struct {
+	ClientID string
+	Host     string
+	Port     int
+	Username string
+	Password string
+	Timeout  time.Duration
+	Topics   []string
+}
+
 // Configuration structure.
 type Configuration struct {
 	Logging Logger
 	Server  Server
+	Mqtt    Mqtt
 }
 
 // Parse and validate viper config.
@@ -42,5 +54,11 @@ func Parse() (cfg Configuration, err error) {
 
 func setDefaults() {
 	viper.SetDefault("logging.level", "info")
+
 	viper.SetDefault("server.port", 8079)
+
+	viper.SetDefault("mqtt.clientid", "mqtt-prometheus-exporter")
+	viper.SetDefault("mqtt.host", ":")
+	viper.SetDefault("mqtt.port", 9641)
+	viper.SetDefault("mqtt.timeout", "3s")
 }
