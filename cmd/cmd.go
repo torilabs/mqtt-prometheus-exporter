@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/torilabs/mqtt-prometheus-exporter/mqtt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,6 +30,7 @@ var rootCmd = &cobra.Command{
 	DisableAutoGenTag: true,
 	Short:             "MQTT exporter for Prometheus.",
 	Long:              "MQTT Prometheus Exporter exports MQTT topics in Prometheus format.",
+	SilenceUsage:      true,
 	PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		if err = viper.BindPFlags(cmd.Flags()); err != nil {
 			return
@@ -50,7 +52,17 @@ var rootCmd = &cobra.Command{
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-		// TODO
+		l, err := mqtt.NewListener(cfg.Mqtt)
+		if err != nil {
+			return err
+		}
+		defer l.Close()
+
+		for _, t := range cfg.Mqtt.Topics {
+			if err := l.Subscribe(t); err != nil {
+				return err
+			}
+		}
 
 		startAdminServer()
 

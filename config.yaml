@@ -4,3 +4,10 @@ logging:
 
 server:
   port: 8079
+
+mqtt:
+  host: ":"
+  port: 9641
+  timeout: 3s
+  topics:
+    - "/home/temperature
