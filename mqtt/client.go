@@ -11,12 +11,13 @@ import (
 
 // Listener provides actions over MQTT client
 type Listener interface {
-	Subscribe(topic string) error
+	Subscribe(topic string, mh pahomqtt.MessageHandler) error
 	Close()
 }
 
 type listener struct {
 	c       pahomqtt.Client
+	mh      pahomqtt.MessageHandler
 	timeout time.Duration
 }
 
@@ -52,11 +53,9 @@ func createClientOptions(cfg config.Mqtt) *pahomqtt.ClientOptions {
 	return opts
 }
 
-func (l *listener) Subscribe(topic string) error {
+func (l *listener) Subscribe(topic string, mh pahomqtt.MessageHandler) error {
 	log.Logger.Infof("Will subscribe to topic '%s'.", topic)
-	token := l.c.Subscribe(topic, 0, func(client pahomqtt.Client, msg pahomqtt.Message) {
-		log.Logger.Infof("* [%s] %s", msg.Topic(), string(msg.Payload()))
-	})
+	token := l.c.Subscribe(topic, 0, mh)
 
 	if ok := token.WaitTimeout(l.timeout); !ok {
 		return errors.Errorf("MQTT topic '%s' subscription timed out in '%v'", topic, l.timeout)
