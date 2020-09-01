@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/torilabs/mqtt-prometheus-exporter/mqtt"
+	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
 	"net/http"
 	"os"
 	"os/signal"
@@ -58,12 +60,15 @@ var rootCmd = &cobra.Command{
 		}
 		defer l.Close()
 
-		for _, t := range cfg.Mqtt.Topics {
-			if err := l.Subscribe(t); err != nil {
+		cl := prometheus.NewCollector(cfg.Cache.Timeout, cfg.Metrics)
+		for _, m := range cfg.Metrics {
+			mh := mqtt.NewMessageHandler(m, cl)
+			if err := l.Subscribe(m.MqttTopic, mh); err != nil {
 				return err
 			}
 		}
 
+		prom.MustRegister(cl)
 		startAdminServer()
 
 		// wait for program to terminate

@@ -140,11 +140,12 @@ func Test_listener_Subscribe(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		mh := func(client pahomqtt.Client, msg pahomqtt.Message) {}
 		t.Run(tt.name, func(t *testing.T) {
 			l := &listener{
 				c: tt.fields.c,
 			}
-			if err := l.Subscribe("topic"); (err != nil) != tt.wantErr {
+			if err := l.Subscribe("topic", mh); (err != nil) != tt.wantErr {
 				t.Errorf("Subscribe() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
