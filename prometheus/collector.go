@@ -28,6 +28,9 @@ type collectorEntry struct {
 
 // NewCollector constructs collector for incoming prometheus metrics
 func NewCollector(defaultTimeout time.Duration, possibleMetrics []config.Metric) Collector {
+	if len(possibleMetrics) == 0 {
+		log.Logger.Warn("No metrics are configured.")
+	}
 	var descs []*prometheus.Desc
 	for _, m := range possibleMetrics {
 		descs = append(descs, m.PrometheusDescription())

@@ -8,6 +8,6 @@ import (
 
 func main() {
 	if err := cmd.Execute(); err != nil {
-		log.Logger.With(zap.Error(err)).Fatal("Terminating the service.")
+		log.Logger.With(zap.Error(err)).Error("Terminating the service.")
 	}
 }
