@@ -55,7 +55,7 @@ func (c *memoryCachedCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *memoryCachedCollector) Collect(mc chan<- prometheus.Metric) {
-	log.Logger.Debugf("Collect triggered. Returning '%d' metrics.", c.cache.ItemCount())
+	log.Logger.Debugf("Collecting. Returned '%d' metrics.", c.cache.ItemCount())
 	for _, rawItem := range c.cache.Items() {
 		item := rawItem.Object.(*collectorEntry)
 		mc <- prometheus.NewMetricWithTimestamp(item.ts, item.m)

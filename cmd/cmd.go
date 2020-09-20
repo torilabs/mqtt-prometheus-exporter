@@ -32,6 +32,7 @@ var rootCmd = &cobra.Command{
 	DisableAutoGenTag: true,
 	Short:             "MQTT exporter for Prometheus.",
 	Long:              "MQTT Prometheus Exporter exports MQTT topics in Prometheus format.",
+	SilenceErrors:     true,
 	SilenceUsage:      true,
 	PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		if err = viper.BindPFlags(cmd.Flags()); err != nil {
@@ -68,7 +69,9 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		prom.MustRegister(cl)
+		if err := prom.Register(cl); err != nil {
+			return err
+		}
 		startAdminServer()
 
 		// wait for program to terminate
