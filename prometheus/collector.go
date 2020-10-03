@@ -2,15 +2,16 @@ package prometheus
 
 import (
 	"fmt"
+	"time"
+
 	gocache "github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/torilabs/mqtt-prometheus-exporter/config"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 	"go.uber.org/zap"
-	"time"
 )
 
-// Collector is an extended interface of prometheus.Collector
+// Collector is an extended interface of prometheus.Collector.
 type Collector interface {
 	prometheus.Collector
 	Observe(metric config.Metric, topic string, v float64)
@@ -26,7 +27,7 @@ type collectorEntry struct {
 	ts time.Time
 }
 
-// NewCollector constructs collector for incoming prometheus metrics
+// NewCollector constructs collector for incoming prometheus metrics.
 func NewCollector(defaultTimeout time.Duration, possibleMetrics []config.Metric) Collector {
 	if len(possibleMetrics) == 0 {
 		log.Logger.Warn("No metrics are configured.")
@@ -44,7 +45,7 @@ func NewCollector(defaultTimeout time.Duration, possibleMetrics []config.Metric)
 func (c *memoryCachedCollector) Observe(metric config.Metric, topic string, v float64) {
 	m, err := prometheus.NewConstMetric(metric.PrometheusDescription(), metric.PrometheusValueType(), v, topic)
 	if err != nil {
-		log.Logger.With(zap.Error(err)).Errorf("creation of prometheus metric failed")
+		log.Logger.With(zap.Error(err)).Warnf("Creation of prometheus metric failed.")
 		return
 	}
 	key := fmt.Sprintf("%s|%s", metric.PrometheusName, topic)
