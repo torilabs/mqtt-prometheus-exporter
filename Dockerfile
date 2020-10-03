@@ -1,5 +1,5 @@
 # Builder image
-FROM golang:1.14 as builder
+FROM golang:1.15 as builder
 WORKDIR /workspace
 
 ENV GO111MODULE=on
@@ -15,5 +15,4 @@ FROM alpine:3.11.3
 WORKDIR /
 
 COPY --from=builder /workspace/mqtt-prometheus-exporter .
-COPY --from=builder /workspace/config.yaml .
 ENTRYPOINT ["/mqtt-prometheus-exporter"]

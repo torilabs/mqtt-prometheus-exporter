@@ -1,12 +1,13 @@
 package mqtt
 
 import (
+	"strconv"
+
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/torilabs/mqtt-prometheus-exporter/config"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type messageHandler struct {
@@ -29,7 +30,7 @@ func (h *messageHandler) getMessageHandler() pahomqtt.MessageHandler {
 		log.Logger.Debugf("Received MQTT msg '%s' from '%s' topic. Listener for: '%s'", strValue, msg.Topic(), h.metric.MqttTopic)
 		floatValue, err := strconv.ParseFloat(strValue, 64)
 		if err != nil {
-			log.Logger.With(zap.Error(err)).Errorf("got data with unexpected value '%s' and failed to parse to float", strValue)
+			log.Logger.With(zap.Error(err)).Errorf("Got data with unexpected value '%s' and failed to parse to float.", strValue)
 			return
 		}
 		h.collector.Observe(h.metric, msg.Topic(), floatValue)

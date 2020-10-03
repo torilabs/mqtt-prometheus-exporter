@@ -1,19 +1,21 @@
 package cmd
 
 import (
-	prom "github.com/prometheus/client_golang/prometheus"
-	"github.com/torilabs/mqtt-prometheus-exporter/mqtt"
-	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/etherlabsio/healthcheck"
+	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/torilabs/mqtt-prometheus-exporter/config"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
-	"github.com/torilabs/mqtt-prometheus-exporter/server"
+	"github.com/torilabs/mqtt-prometheus-exporter/mqtt"
+	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
 	"go.uber.org/zap"
 )
 
@@ -55,7 +57,7 @@ var rootCmd = &cobra.Command{
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-		l, err := mqtt.NewListener(cfg.Mqtt)
+		l, err := mqtt.NewListener(cfg.MQTT)
 		if err != nil {
 			return err
 		}
@@ -72,7 +74,7 @@ var rootCmd = &cobra.Command{
 		if err := prom.Register(cl); err != nil {
 			return err
 		}
-		startAdminServer()
+		startServer()
 
 		// wait for program to terminate
 		<-sigs
@@ -88,11 +90,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgPath, "config", "./config.yaml", "Path to the config file.")
 }
 
-func startAdminServer() {
+func startServer() {
 	log.Logger.Infof("Starting admin server on port '%v'.", cfg.Server.Port)
 
 	go func() {
-		if err := server.ListenAndServe(cfg.Server); err != nil && err != http.ErrServerClosed {
+		http.Handle("/healthcheck", healthcheck.Handler())
+		http.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Server.Port), nil); err != nil && err != http.ErrServerClosed {
 			log.Logger.With(zap.Error(err)).Fatalf("Failed to start admin server.")
 		}
 	}()

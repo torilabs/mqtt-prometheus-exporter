@@ -10,9 +10,6 @@ MAKEFLAGS += --no-print-directory
 
 prepare:
 	@echo "Downloading tools"
-ifeq (, $(shell which golint))
-	go get golang.org/x/lint/golint
-endif
 ifeq (, $(shell which go-junit-report))
 	go get github.com/jstemmer/go-junit-report
 endif
@@ -23,12 +20,12 @@ ifeq (, $(shell which gocov-xml))
 	go get github.com/AlekSi/gocov-xml
 endif
 
-check: prepare
+check:
 	@echo "Running check"
-	gofmt -s -d -e $(SRC)
-	@test -z $(shell gofmt -l ${SRC} | tee /dev/stderr)
-	golint -set_exit_status $$(go list ./...)
-	go vet  ./...
+ifeq (, $(shell which golangci-lint))
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $(GOPATH)/bin v1.30.0
+endif
+	golangci-lint run
 	go mod tidy
 
 test: prepare
@@ -39,11 +36,7 @@ test: prepare
 	gocov convert report/coverage.txt | gocov-xml > report/coverage.xml
 	go mod tidy
 
-generate: prepare
-	@echo "Running generate"
-	go generate
-
-build: generate
+build:
 	@echo "Running build"
 	go build -v -o "$(EXECUTABLE)"
 

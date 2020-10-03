@@ -2,14 +2,15 @@ package mqtt
 
 import (
 	"fmt"
+	"time"
+
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"github.com/torilabs/mqtt-prometheus-exporter/config"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
-	"time"
 )
 
-// Listener provides actions over MQTT client
+// Listener provides actions over MQTT client.
 type Listener interface {
 	Subscribe(topic string, mh pahomqtt.MessageHandler) error
 	Close()
@@ -17,13 +18,17 @@ type Listener interface {
 
 type listener struct {
 	c       pahomqtt.Client
-	mh      pahomqtt.MessageHandler
 	timeout time.Duration
 }
 
-// NewListener creates listener over MQTT client
-func NewListener(cfg config.Mqtt) (Listener, error) {
-	opts := createClientOptions(cfg)
+// NewListener creates listener over MQTT client.
+func NewListener(cfg config.MQTT) (Listener, error) {
+	opts := pahomqtt.NewClientOptions()
+	opts.AddBroker(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
+	opts.SetUsername(cfg.Username)
+	opts.SetPassword(cfg.Password)
+	opts.SetClientID(cfg.ClientID)
+
 	log.Logger.Infof("Will connect to MQTT Brokers '%v'.", opts.Servers)
 	client := pahomqtt.NewClient(opts)
 	token := client.Connect()
@@ -42,15 +47,6 @@ func NewListener(cfg config.Mqtt) (Listener, error) {
 	log.Logger.Infof("Connected to MQTT Brokers '%v'.", opts.Servers)
 
 	return &listener{c: client, timeout: cfg.Timeout}, nil
-}
-
-func createClientOptions(cfg config.Mqtt) *pahomqtt.ClientOptions {
-	opts := pahomqtt.NewClientOptions()
-	opts.AddBroker(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
-	opts.SetUsername(cfg.Username)
-	opts.SetPassword(cfg.Password)
-	opts.SetClientID(cfg.ClientID)
-	return opts
 }
 
 func (l *listener) Subscribe(topic string, mh pahomqtt.MessageHandler) error {

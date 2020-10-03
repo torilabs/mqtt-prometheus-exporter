@@ -2,9 +2,10 @@ package mqtt
 
 import (
 	"errors"
-	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 	"testing"
 	"time"
+
+	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type fakeToken struct {

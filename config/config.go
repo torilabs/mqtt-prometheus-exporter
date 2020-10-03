@@ -1,10 +1,10 @@
 package config
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 )
 
@@ -20,8 +20,8 @@ type Server struct {
 	ShutdownPeriod time.Duration
 }
 
-// Mqtt configuration structure.
-type Mqtt struct {
+// MQTT configuration structure.
+type MQTT struct {
 	ClientID string
 	Host     string
 	Port     int
@@ -67,7 +67,7 @@ func (m *Metric) PrometheusValueType() prometheus.ValueType {
 type Configuration struct {
 	Logging Logger
 	Server  Server
-	Mqtt    Mqtt
+	MQTT    MQTT
 	Metrics []Metric
 	Cache   Cache
 }

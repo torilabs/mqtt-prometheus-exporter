@@ -1,0 +1,22 @@
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+    - gofmt
+    - golint
+    - gci
+    - gofumpt
+    - whitespace
+    - godot
+
+issues:
+  include:
+    - EX0002 # disable excluding of issues about comments from golint
