@@ -27,10 +27,10 @@ func NewMessageHandler(metric config.Metric, collector prometheus.Collector) pah
 func (h *messageHandler) getMessageHandler() pahomqtt.MessageHandler {
 	return func(client pahomqtt.Client, msg pahomqtt.Message) {
 		strValue := string(msg.Payload())
-		log.Logger.Debugf("Received MQTT msg '%s' from '%s' topic. Listener for: '%s'", strValue, msg.Topic(), h.metric.MqttTopic)
+		log.Logger.Debugf("Received MQTT msg '%s' from '%s' topic. Listener for: '%s'.", strValue, msg.Topic(), h.metric.MqttTopic)
 		floatValue, err := strconv.ParseFloat(strValue, 64)
 		if err != nil {
-			log.Logger.With(zap.Error(err)).Errorf("Got data with unexpected value '%s' and failed to parse to float.", strValue)
+			log.Logger.With(zap.Error(err)).Warnf("Got data with unexpected value '%s' and failed to parse to float.", strValue)
 			return
 		}
 		h.collector.Observe(h.metric, msg.Topic(), floatValue)
