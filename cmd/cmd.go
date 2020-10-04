@@ -63,7 +63,7 @@ var rootCmd = &cobra.Command{
 		}
 		defer l.Close()
 
-		cl := prometheus.NewCollector(cfg.Cache.Timeout, cfg.Metrics)
+		cl := prometheus.NewCollector(cfg.Cache.Expiration, cfg.Metrics)
 		for _, m := range cfg.Metrics {
 			mh := mqtt.NewMessageHandler(m, cl)
 			if err := l.Subscribe(m.MqttTopic, mh); err != nil {
