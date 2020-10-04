@@ -16,8 +16,7 @@ type Logger struct {
 
 // Server configuration structure.
 type Server struct {
-	Port           int
-	ShutdownPeriod time.Duration
+	Port int
 }
 
 // MQTT configuration structure.
@@ -32,7 +31,7 @@ type MQTT struct {
 
 // Cache configuration structure.
 type Cache struct {
-	Timeout time.Duration `mapstructure:"timeout"`
+	Expiration time.Duration `mapstructure:"expiration"`
 }
 
 // Metric is a mapping between a metric send on mqtt to a prometheus metric.
@@ -93,9 +92,9 @@ func setDefaults() {
 	viper.SetDefault("server.port", 8079)
 
 	viper.SetDefault("mqtt.clientid", "mqtt-prometheus-exporter")
-	viper.SetDefault("mqtt.host", ":")
+	viper.SetDefault("mqtt.host", "")
 	viper.SetDefault("mqtt.port", 9641)
 	viper.SetDefault("mqtt.timeout", "3s")
 
-	viper.SetDefault("cache.timeout", "60s")
+	viper.SetDefault("cache.expiration", "60s")
 }

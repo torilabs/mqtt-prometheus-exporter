@@ -28,7 +28,7 @@ type collectorEntry struct {
 }
 
 // NewCollector constructs collector for incoming prometheus metrics.
-func NewCollector(defaultTimeout time.Duration, possibleMetrics []config.Metric) Collector {
+func NewCollector(expiration time.Duration, possibleMetrics []config.Metric) Collector {
 	if len(possibleMetrics) == 0 {
 		log.Logger.Warn("No metrics are configured.")
 	}
@@ -37,7 +37,7 @@ func NewCollector(defaultTimeout time.Duration, possibleMetrics []config.Metric)
 		descs = append(descs, m.PrometheusDescription())
 	}
 	return &memoryCachedCollector{
-		cache:        gocache.New(defaultTimeout, defaultTimeout*10),
+		cache:        gocache.New(expiration, expiration*10),
 		descriptions: descs,
 	}
 }
