@@ -16,7 +16,7 @@ type Logger struct {
 
 // Server configuration structure.
 type Server struct {
-	Port           int
+	Port int
 }
 
 // MQTT configuration structure.
