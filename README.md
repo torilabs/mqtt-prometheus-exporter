@@ -37,7 +37,6 @@ server:
 
 # MQTT client configuration
 mqtt:
-  clientId: "mqtt-prometheus-exporter"
   # MQTT broker to connect to - default is: tcp://127.0.0.1
   # The format should be "scheme://host", where "scheme"
   # is one of "tcp", "ssl", or "ws", "host" is the ip-address (or hostname).

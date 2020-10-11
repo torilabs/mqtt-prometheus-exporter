@@ -21,7 +21,6 @@ type Server struct {
 
 // MQTT configuration structure.
 type MQTT struct {
-	ClientID string
 	Host     string
 	Port     int
 	Username string
