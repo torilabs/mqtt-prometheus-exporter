@@ -57,11 +57,13 @@ var rootCmd = &cobra.Command{
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
+		checkers := make([]healthcheck.Option, 0)
 		l, err := mqtt.NewListener(cfg.MQTT)
 		if err != nil {
 			return err
 		}
 		defer l.Close()
+		checkers = append(checkers, healthcheck.WithChecker("MQTT", l))
 
 		cl := prometheus.NewCollector(cfg.Cache.Expiration, cfg.Metrics)
 		for _, m := range cfg.Metrics {
@@ -74,7 +76,7 @@ var rootCmd = &cobra.Command{
 		if err := prom.Register(cl); err != nil {
 			return err
 		}
-		startServer()
+		startServer(checkers)
 
 		// wait for program to terminate
 		<-sigs
@@ -90,11 +92,11 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgPath, "config", "./config.yaml", "Path to the config file.")
 }
 
-func startServer() {
+func startServer(checkers []healthcheck.Option) {
 	log.Logger.Infof("Starting admin server on port '%v'.", cfg.Server.Port)
 
 	go func() {
-		http.Handle("/healthcheck", healthcheck.Handler())
+		http.Handle("/healthcheck", healthcheck.Handler(checkers...))
 		http.Handle("/metrics", promhttp.Handler())
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Server.Port), nil); err != nil && err != http.ErrServerClosed {
 			log.Logger.With(zap.Error(err)).Fatalf("Failed to start admin server.")
