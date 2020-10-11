@@ -3,6 +3,8 @@ package mqtt
 import (
 	"context"
 	"fmt"
+	"math"
+	"math/rand"
 	"time"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
@@ -10,6 +12,8 @@ import (
 	"github.com/torilabs/mqtt-prometheus-exporter/config"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 )
+
+const clientIDPrefix = "mqtt-prometheus-exporter-"
 
 // Listener provides actions over MQTT client.
 type Listener interface {
@@ -29,7 +33,7 @@ func NewListener(cfg config.MQTT) (Listener, error) {
 	opts.AddBroker(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
 	opts.SetUsername(cfg.Username)
 	opts.SetPassword(cfg.Password)
-	opts.SetClientID(cfg.ClientID)
+	opts.SetClientID(fmt.Sprintf("%s%d", clientIDPrefix, rand.Intn(math.MaxInt16)))
 
 	log.Logger.Infof("Will connect to MQTT Brokers '%v'.", opts.Servers)
 	client := pahomqtt.NewClient(opts)
