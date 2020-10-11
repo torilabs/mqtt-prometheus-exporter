@@ -41,12 +41,17 @@ type Metric struct {
 	Help           string            `mapstructure:"help"`
 	MetricType     string            `mapstructure:"type"`
 	ConstantLabels map[string]string `mapstructure:"const_labels"`
+	TopicLabels    map[string]int    `mapstructure:"topic_labels"`
 }
 
 // PrometheusDescription constructs description.
 func (m *Metric) PrometheusDescription() *prometheus.Desc {
+	varLabels := []string{"topic"}
+	for tl := range m.TopicLabels {
+		varLabels = append(varLabels, tl)
+	}
 	return prometheus.NewDesc(
-		m.PrometheusName, m.Help, []string{"topic"}, m.ConstantLabels,
+		m.PrometheusName, m.Help, varLabels, m.ConstantLabels,
 	)
 }
 
