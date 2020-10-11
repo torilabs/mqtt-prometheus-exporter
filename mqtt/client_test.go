@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ func (t *fakeToken) Error() error {
 
 type fakeClient struct {
 	connected             bool
+	connectionOpen        bool
 	tokenTimeout          bool
 	tokenError            bool
 	disconnectInvocations int
@@ -40,7 +42,7 @@ func (c *fakeClient) IsConnected() bool {
 }
 
 func (c *fakeClient) IsConnectionOpen() bool {
-	return false
+	return c.connectionOpen
 }
 
 func (c *fakeClient) Connect() pahomqtt.Token {
@@ -148,6 +150,42 @@ func Test_listener_Subscribe(t *testing.T) {
 			}
 			if err := l.Subscribe("topic", mh); (err != nil) != tt.wantErr {
 				t.Errorf("Subscribe() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_listener_Check(t *testing.T) {
+	type fields struct {
+		c pahomqtt.Client
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "Client check is OK",
+			fields: fields{
+				c: &fakeClient{connectionOpen: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Client check failing",
+			fields: fields{
+				c: &fakeClient{connectionOpen: false},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &listener{
+				c: tt.fields.c,
+			}
+			if err := l.Check(context.Background()); (err != nil) != tt.wantErr {
+				t.Errorf("Check() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

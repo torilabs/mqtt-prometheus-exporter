@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 type Listener interface {
 	Subscribe(topic string, mh pahomqtt.MessageHandler) error
 	Close()
+	Check(ctx context.Context) error
 }
 
 type listener struct {
@@ -65,4 +67,11 @@ func (l *listener) Close() {
 		l.c.Disconnect(100)
 		log.Logger.Info("MQTT Brokers disconnected.")
 	}
+}
+
+func (l *listener) Check(_ context.Context) error {
+	if !l.c.IsConnectionOpen() {
+		return errors.New("MQTT client disconnected")
+	}
+	return nil
 }
