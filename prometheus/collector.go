@@ -14,7 +14,7 @@ import (
 // Collector is an extended interface of prometheus.Collector.
 type Collector interface {
 	prometheus.Collector
-	Observe(metric config.Metric, topic string, v float64)
+	Observe(metric config.Metric, topic string, v float64, labelValues []string)
 }
 
 type memoryCachedCollector struct {
@@ -42,8 +42,8 @@ func NewCollector(expiration time.Duration, possibleMetrics []config.Metric) Col
 	}
 }
 
-func (c *memoryCachedCollector) Observe(metric config.Metric, topic string, v float64) {
-	m, err := prometheus.NewConstMetric(metric.PrometheusDescription(), metric.PrometheusValueType(), v, topic)
+func (c *memoryCachedCollector) Observe(metric config.Metric, topic string, v float64, labelValues []string) {
+	m, err := prometheus.NewConstMetric(metric.PrometheusDescription(), metric.PrometheusValueType(), v, labelValues...)
 	if err != nil {
 		log.Logger.With(zap.Error(err)).Warnf("Creation of prometheus metric failed.")
 		return

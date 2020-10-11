@@ -71,6 +71,14 @@ metrics:
     # list of constant labels with values added to metric
     const_labels:
       - mylabel: "label value"
+    # list of labels with topic name index
+    # index represents part number of topic name split by "/"
+    # example below add {device: "sensorX", negative_idx: "sensorX", out_of_range: ""} labels
+    #   when message received from topic "/home/sensorX/temperature"
+    topic_labels:
+      - device: 2
+      - negative_idx: -2
+      - out_of_range: 5
   - mqtt_topic: "/home/rpi/memory"
     prom_name: "rpi_memory"
     type: "gauge"
@@ -101,6 +109,5 @@ docker run -it -p 8079:8079 -v $(pwd)/my-config.yaml:/config.yaml --rm torilabs/
 
 ## Future features
 * add support for different formats of MQTT message e.g. JSON
-* turn part of MQTT topic name into metric label, e.g. get room name from topic name `/home/+/temperature` and produce metric with `{room="kitchen"}` label
 
 Contact me in case some other interesting feature is missing.
