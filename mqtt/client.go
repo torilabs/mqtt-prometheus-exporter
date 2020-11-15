@@ -9,7 +9,6 @@ import (
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
-	"github.com/torilabs/mqtt-prometheus-exporter/config"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 )
 
@@ -27,20 +26,51 @@ type listener struct {
 	timeout time.Duration
 }
 
+// ListenerOption allows to configure MQTT client.
+type ListenerOption func(options *pahomqtt.ClientOptions)
+
+// WithHostAndPort is option that defines MQTT broker.
+func WithHostAndPort(host string, port int) ListenerOption {
+	return func(opts *pahomqtt.ClientOptions) {
+		opts.AddBroker(fmt.Sprintf("%s:%d", host, port))
+	}
+}
+
+// WithUsername is option that sets connection credentials.
+func WithUsername(username string) ListenerOption {
+	return func(opts *pahomqtt.ClientOptions) {
+		opts.SetUsername(username)
+	}
+}
+
+// WithPassword is option that sets connection credentials.
+func WithPassword(password string) ListenerOption {
+	return func(opts *pahomqtt.ClientOptions) {
+		opts.SetPassword(password)
+	}
+}
+
+// WithTimeout is option that sets MQTT client timeout.
+func WithTimeout(timeout time.Duration) ListenerOption {
+	return func(opts *pahomqtt.ClientOptions) {
+		opts.SetPingTimeout(timeout)
+	}
+}
+
 // NewListener creates listener over MQTT client.
-func NewListener(cfg config.MQTT) (Listener, error) {
+func NewListener(lo ...ListenerOption) (Listener, error) {
 	opts := pahomqtt.NewClientOptions()
-	opts.AddBroker(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
-	opts.SetUsername(cfg.Username)
-	opts.SetPassword(cfg.Password)
+	for _, o := range lo {
+		o(opts)
+	}
 	opts.SetClientID(fmt.Sprintf("%s%d", clientIDPrefix, rand.Intn(math.MaxInt16)))
 
 	log.Logger.Infof("Will connect to MQTT Brokers '%v'.", opts.Servers)
 	client := pahomqtt.NewClient(opts)
 	token := client.Connect()
 
-	if ok := token.WaitTimeout(cfg.Timeout); !ok {
-		return nil, errors.Errorf("MQTT connection timed out in '%v'", cfg.Timeout)
+	if ok := token.WaitTimeout(opts.PingTimeout); !ok {
+		return nil, errors.Errorf("MQTT connection timed out in '%v'", opts.PingTimeout)
 	}
 
 	if err := token.Error(); err != nil {
@@ -52,7 +82,7 @@ func NewListener(cfg config.MQTT) (Listener, error) {
 	}
 	log.Logger.Infof("Connected to MQTT Brokers '%v'.", opts.Servers)
 
-	return &listener{c: client, timeout: cfg.Timeout}, nil
+	return &listener{c: client, timeout: opts.PingTimeout}, nil
 }
 
 func (l *listener) Subscribe(topic string, mh pahomqtt.MessageHandler) error {
