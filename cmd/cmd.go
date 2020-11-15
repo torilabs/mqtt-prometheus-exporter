@@ -58,7 +58,11 @@ var rootCmd = &cobra.Command{
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 		checkers := make([]healthcheck.Option, 0)
-		l, err := mqtt.NewListener(cfg.MQTT)
+		l, err := mqtt.NewListener(
+			mqtt.WithHostAndPort(cfg.MQTT.Host, cfg.MQTT.Port),
+			mqtt.WithUsername(cfg.MQTT.Username),
+			mqtt.WithPassword(cfg.MQTT.Password),
+			mqtt.WithTimeout(cfg.MQTT.Timeout))
 		if err != nil {
 			return err
 		}

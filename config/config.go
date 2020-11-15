@@ -95,7 +95,6 @@ func setDefaults() {
 
 	viper.SetDefault("server.port", 8079)
 
-	viper.SetDefault("mqtt.clientid", "mqtt-prometheus-exporter")
 	viper.SetDefault("mqtt.host", "")
 	viper.SetDefault("mqtt.port", 9641)
 	viper.SetDefault("mqtt.timeout", "3s")
