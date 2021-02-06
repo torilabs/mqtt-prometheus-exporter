@@ -69,7 +69,11 @@ var rootCmd = &cobra.Command{
 		defer l.Close()
 		checkers = append(checkers, healthcheck.WithChecker("MQTT", l))
 
-		cl := prometheus.NewCollector(cfg.Cache.Expiration, cfg.Metrics)
+		var descs []*prom.Desc
+		for _, m := range cfg.Metrics {
+			descs = append(descs, m.PrometheusDescription())
+		}
+		cl := prometheus.NewCollector(cfg.Cache.Expiration, descs)
 		for _, m := range cfg.Metrics {
 			mh := mqtt.NewMessageHandler(m, cl)
 			if err := l.Subscribe(m.MqttTopic, mh); err != nil {

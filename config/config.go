@@ -35,12 +35,16 @@ type Cache struct {
 
 // Metric is a mapping between a metric send on mqtt to a prometheus metric.
 type Metric struct {
-	PrometheusName string            `mapstructure:"prom_name"`
+	prometheusName string            `mapstructure:"prom_name"`
 	MqttTopic      string            `mapstructure:"mqtt_topic"`
 	Help           string            `mapstructure:"help"`
 	MetricType     string            `mapstructure:"type"`
 	ConstantLabels map[string]string `mapstructure:"const_labels"`
 	TopicLabels    map[string]int    `mapstructure:"topic_labels"`
+}
+
+func (m *Metric) PrometheusName() string {
+	return m.prometheusName
 }
 
 // PrometheusDescription constructs description.
@@ -50,7 +54,7 @@ func (m *Metric) PrometheusDescription() *prometheus.Desc {
 		varLabels = append(varLabels, tl)
 	}
 	return prometheus.NewDesc(
-		m.PrometheusName, m.Help, varLabels, m.ConstantLabels,
+		m.prometheusName, m.Help, varLabels, m.ConstantLabels,
 	)
 }
 
