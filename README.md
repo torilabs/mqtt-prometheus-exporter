@@ -108,5 +108,3 @@ docker run -it -p 8079:8079 -v $(pwd)/my-config.yaml:/config.yaml --rm torilabs/
 
 ## Future features
 * add support for different formats of MQTT message e.g. JSON
-
-Contact me in case some other interesting feature is missing.

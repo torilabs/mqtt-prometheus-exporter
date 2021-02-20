@@ -4,19 +4,20 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/prometheus/client_golang/prometheus"
+	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/torilabs/mqtt-prometheus-exporter/config"
+	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
 )
 
 type fakeCollector struct {
 	observed       bool
-	obsMetric      config.Metric
+	obsMetric      prometheus.CollectorMetric
 	obsTopic       string
 	obsValue       float64
 	obsLabelValues []string
 }
 
-func (c *fakeCollector) Observe(metric config.Metric, topic string, v float64, labelValues []string) {
+func (c *fakeCollector) Observe(metric prometheus.CollectorMetric, topic string, v float64, labelValues []string) {
 	c.observed = true
 	c.obsMetric = metric
 	c.obsTopic = topic
@@ -24,10 +25,10 @@ func (c *fakeCollector) Observe(metric config.Metric, topic string, v float64, l
 	c.obsLabelValues = labelValues
 }
 
-func (c *fakeCollector) Describe(ch chan<- *prometheus.Desc) {
+func (c *fakeCollector) Describe(ch chan<- *prom.Desc) {
 }
 
-func (c *fakeCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *fakeCollector) Collect(ch chan<- prom.Metric) {
 }
 
 type fakeMessage struct {
@@ -124,8 +125,8 @@ func Test_messageHandler(t *testing.T) {
 				if tt.wantValue != tt.args.collector.obsValue {
 					t.Errorf("value = %v, want %v", tt.args.collector.obsValue, tt.wantValue)
 				}
-				if !reflect.DeepEqual(tt.args.metric, tt.args.collector.obsMetric) {
-					t.Errorf("metric = %v, want %v", tt.args.collector.obsMetric, tt.args.metric)
+				if tt.args.metric.PrometheusName() != tt.args.collector.obsMetric.PrometheusName() {
+					t.Errorf("metric = %v, want %v", tt.args.collector.obsMetric.PrometheusName(), tt.args.metric.PrometheusName())
 				}
 				if !reflect.DeepEqual(tt.wantLabelValues, tt.args.collector.obsLabelValues) {
 					t.Errorf("labelValues = %v, want %v", tt.args.collector.obsLabelValues, tt.wantLabelValues)

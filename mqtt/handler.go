@@ -37,6 +37,6 @@ func (h *messageHandler) getMessageHandler() pahomqtt.MessageHandler {
 		for _, idx := range h.metric.TopicLabels {
 			labelValues = append(labelValues, getTopicPart(msg.Topic(), idx))
 		}
-		h.collector.Observe(h.metric, msg.Topic(), floatValue, labelValues)
+		h.collector.Observe(&h.metric, msg.Topic(), floatValue, labelValues)
 	}
 }

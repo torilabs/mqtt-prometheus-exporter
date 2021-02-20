@@ -6,15 +6,21 @@ import (
 
 	gocache "github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/torilabs/mqtt-prometheus-exporter/config"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 	"go.uber.org/zap"
 )
 
+// CollectorMetric represents configuration of observed metric.
+type CollectorMetric interface {
+	PrometheusDescription() *prometheus.Desc
+	PrometheusValueType() prometheus.ValueType
+	PrometheusName() string
+}
+
 // Collector is an extended interface of prometheus.Collector.
 type Collector interface {
 	prometheus.Collector
-	Observe(metric config.Metric, topic string, v float64, labelValues []string)
+	Observe(metric CollectorMetric, topic string, v float64, labelValues []string)
 }
 
 type memoryCachedCollector struct {
@@ -28,27 +34,23 @@ type collectorEntry struct {
 }
 
 // NewCollector constructs collector for incoming prometheus metrics.
-func NewCollector(expiration time.Duration, possibleMetrics []config.Metric) Collector {
-	if len(possibleMetrics) == 0 {
+func NewCollector(expiration time.Duration, possibleDescs []*prometheus.Desc) Collector {
+	if len(possibleDescs) == 0 {
 		log.Logger.Warn("No metrics are configured.")
-	}
-	var descs []*prometheus.Desc
-	for _, m := range possibleMetrics {
-		descs = append(descs, m.PrometheusDescription())
 	}
 	return &memoryCachedCollector{
 		cache:        gocache.New(expiration, expiration*10),
-		descriptions: descs,
+		descriptions: possibleDescs,
 	}
 }
 
-func (c *memoryCachedCollector) Observe(metric config.Metric, topic string, v float64, labelValues []string) {
+func (c *memoryCachedCollector) Observe(metric CollectorMetric, topic string, v float64, labelValues []string) {
 	m, err := prometheus.NewConstMetric(metric.PrometheusDescription(), metric.PrometheusValueType(), v, labelValues...)
 	if err != nil {
 		log.Logger.With(zap.Error(err)).Warnf("Creation of prometheus metric failed.")
 		return
 	}
-	key := fmt.Sprintf("%s|%s", metric.PrometheusName, topic)
+	key := fmt.Sprintf("%s|%s", metric.PrometheusName(), topic)
 	c.cache.SetDefault(key, &collectorEntry{m: m, ts: time.Now()})
 }
 
