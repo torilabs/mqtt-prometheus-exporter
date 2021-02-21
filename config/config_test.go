@@ -9,6 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
+	"gopkg.in/validator.v2"
 )
 
 func TestMetric_PrometheusDescription(t *testing.T) {
@@ -200,6 +201,61 @@ metrics:
 			}
 			if !reflect.DeepEqual(gotCfg, tt.wantCfg) {
 				t.Errorf("Parse() gotCfg = %v, want %v", gotCfg, tt.wantCfg)
+			}
+		})
+	}
+}
+
+func TestMetricValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		metric  Metric
+		wantErr bool
+	}{
+		{
+			name: "valid metric",
+			metric: Metric{
+				PrometheusName: "name_1:stat",
+				MqttTopic:      "/home/+/memory",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid metric - missing metric name",
+			metric: Metric{
+				MqttTopic: "/home/+/memory",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid metric - missing MQTT topic",
+			metric: Metric{
+				PrometheusName: "name",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid metric - invalid character in a name",
+			metric: Metric{
+				PrometheusName: "name-stat",
+				MqttTopic:      "/home/+/memory",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid metric - name starts with number",
+			metric: Metric{
+				PrometheusName: "1name",
+				MqttTopic:      "/home/+/memory",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validate := validator.NewValidator()
+			if err := validate.Validate(&tt.metric); (err != nil) != tt.wantErr {
+				t.Errorf("validation error '%v', want %v", err, tt.wantErr)
 			}
 		})
 	}
