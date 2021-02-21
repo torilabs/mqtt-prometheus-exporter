@@ -1,6 +1,8 @@
 package mqtt
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
@@ -21,6 +23,9 @@ func NewMessageHandler(metric config.Metric, collector prometheus.Collector) pah
 		metric:    metric,
 		collector: collector,
 	}
+	if metric.JSONField != "" {
+		return mh.getJSONMessageHandler()
+	}
 	return mh.getMessageHandler()
 }
 
@@ -38,5 +43,31 @@ func (h *messageHandler) getMessageHandler() pahomqtt.MessageHandler {
 			labelValues = append(labelValues, getTopicPart(msg.Topic(), idx))
 		}
 		h.collector.Observe(h.metric, msg.Topic(), floatValue, labelValues)
+	}
+}
+
+func (h *messageHandler) getJSONMessageHandler() pahomqtt.MessageHandler {
+	return func(_ pahomqtt.Client, msg pahomqtt.Message) {
+		log.Logger.Debugf("Received MQTT msg '%s' from '%s' topic. Listener for: '%s'.", msg.Payload(), msg.Topic(), h.metric.MqttTopic)
+
+		jsonMap := make(map[string]interface{})
+		if err := json.Unmarshal(msg.Payload(), &jsonMap); err != nil {
+			log.Logger.With(zap.Error(err)).Warnf("Got an invalid JSON value '%s' and failed to unmarshal.", msg.Payload())
+			return
+		}
+
+		labelValues := []string{msg.Topic()}
+		for _, idx := range h.metric.TopicLabels {
+			labelValues = append(labelValues, getTopicPart(msg.Topic(), idx))
+		}
+
+		if value := findInJSON(jsonMap, h.metric.JSONField); value != nil {
+			floatValue, err := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
+			if err != nil {
+				log.Logger.With(zap.Error(err)).Warnf("Got data with unexpected value '%s' and failed to parse to float.", value)
+				return
+			}
+			h.collector.Observe(h.metric, msg.Topic(), floatValue, labelValues)
+		}
 	}
 }

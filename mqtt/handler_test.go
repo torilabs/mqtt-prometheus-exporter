@@ -64,8 +64,7 @@ func (m *fakeMessage) Ack() {
 
 func Test_messageHandler(t *testing.T) {
 	type args struct {
-		metric    config.Metric
-		collector fakeCollector
+		metric config.Metric
 	}
 	tests := []struct {
 		name            string
@@ -76,13 +75,12 @@ func Test_messageHandler(t *testing.T) {
 		wantLabelValues []string
 	}{
 		{
-			name: "Value received and processed",
+			name: "Raw value received and processed",
 			args: args{
 				metric: config.Metric{
 					MqttTopic:   "/topic/level2/level3/#",
 					TopicLabels: map[string]int{"customTopic": 2},
 				},
-				collector: fakeCollector{},
 			},
 			msg: fakeMessage{
 				topic:   "/topic/level2/level3/device",
@@ -93,12 +91,11 @@ func Test_messageHandler(t *testing.T) {
 			wantLabelValues: []string{"/topic/level2/level3/device", "level2"},
 		},
 		{
-			name: "Value received and failed to parse",
+			name: "Raw value received and failed to parse",
 			args: args{
 				metric: config.Metric{
 					MqttTopic: "/topic/level2/level3/#",
 				},
-				collector: fakeCollector{},
 			},
 			msg: fakeMessage{
 				topic:   "/topic/level2/level3/device",
@@ -106,29 +103,91 @@ func Test_messageHandler(t *testing.T) {
 			},
 			wantObserved: false,
 		},
+		{
+			name: "JSON value on 1st level parsed",
+			args: args{
+				metric: config.Metric{
+					MqttTopic:   "/topic/level2/level3/#",
+					TopicLabels: map[string]int{"customTopic": 2},
+					JSONField:   "size",
+				},
+			},
+			msg: fakeMessage{
+				topic:   "/topic/level2/level3/device",
+				payload: []byte(`{"city":"Tokyo", "temperatures": {"out": 12.5, "in": 22.15}, "size": -5}`),
+			},
+			wantObserved:    true,
+			wantValue:       -5,
+			wantLabelValues: []string{"/topic/level2/level3/device", "level2"},
+		},
+		{
+			name: "JSON value on 2nd level parsed",
+			args: args{
+				metric: config.Metric{
+					MqttTopic: "/topic/level2/level3/#",
+					JSONField: "temperatures.out",
+				},
+			},
+			msg: fakeMessage{
+				topic:   "/topic/level2/level3/device",
+				payload: []byte(`{"city":"Tokyo", "temperatures": {"out": 12.5, "in": 22.15}, "size": -5}`),
+			},
+			wantObserved:    true,
+			wantValue:       12.5,
+			wantLabelValues: []string{"/topic/level2/level3/device"},
+		},
+		{
+			name: "JSON value as object failed to parse",
+			args: args{
+				metric: config.Metric{
+					MqttTopic: "/topic/level2/level3/#",
+					JSONField: "temperatures",
+				},
+			},
+			msg: fakeMessage{
+				topic:   "/topic/level2/level3/device",
+				payload: []byte(`{"city":"Tokyo", "temperatures": {"out": 12.5, "in": 22.15}, "size": -5}`),
+			},
+			wantObserved: false,
+		},
+		{
+			name: "JSON value as non numeric failed to parse",
+			args: args{
+				metric: config.Metric{
+					MqttTopic: "/topic/level2/level3/#",
+					JSONField: "city",
+				},
+			},
+			msg: fakeMessage{
+				topic:   "/topic/level2/level3/device",
+				payload: []byte(`{"city":"Tokyo", "temperatures": {"out": 12.5, "in": 22.15}, "size": -5}`),
+			},
+			wantObserved: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mh := NewMessageHandler(tt.args.metric, &tt.args.collector)
+			collector := fakeCollector{}
+			mh := NewMessageHandler(tt.args.metric, &collector)
 			mh(&fakeClient{}, &tt.msg)
 
-			if tt.wantObserved != tt.args.collector.observed {
-				t.Errorf("observe = %v, want %v", tt.args.collector.observed, tt.wantObserved)
+			if tt.wantObserved != collector.observed {
+				t.Errorf("observe = %v, want %v", collector.observed, tt.wantObserved)
 				return
 			}
 
-			if tt.args.collector.observed {
-				if tt.msg.topic != tt.args.collector.obsTopic {
-					t.Errorf("topic = %v, want %v", tt.args.collector.obsTopic, tt.msg.topic)
+			if collector.observed {
+				if tt.msg.topic != collector.obsTopic {
+					t.Errorf("topic = %v, want %v", collector.obsTopic, tt.msg.topic)
 				}
-				if tt.wantValue != tt.args.collector.obsValue {
-					t.Errorf("value = %v, want %v", tt.args.collector.obsValue, tt.wantValue)
+				if tt.wantValue != collector.obsValue {
+					t.Errorf("value = %v, want %v", collector.obsValue, tt.wantValue)
 				}
-				if !reflect.DeepEqual(tt.args.metric, tt.args.collector.obsMetric) {
-					t.Errorf("metric = %v, want %v", tt.args.collector.obsMetric, tt.args.metric)
+				if !reflect.DeepEqual(tt.args.metric, collector.obsMetric) {
+					t.Errorf("metric = %v, want %v", collector.obsMetric, tt.args.metric)
 				}
-				if !reflect.DeepEqual(tt.wantLabelValues, tt.args.collector.obsLabelValues) {
-					t.Errorf("labelValues = %v, want %v", tt.args.collector.obsLabelValues, tt.wantLabelValues)
+				if !reflect.DeepEqual(tt.wantLabelValues, collector.obsLabelValues) {
+					t.Errorf("labelValues = %v, want %v", collector.obsLabelValues, tt.wantLabelValues)
 				}
 			}
 		})
