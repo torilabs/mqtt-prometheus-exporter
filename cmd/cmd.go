@@ -17,6 +17,7 @@ import (
 	"github.com/torilabs/mqtt-prometheus-exporter/mqtt"
 	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
 	"go.uber.org/zap"
+	"gopkg.in/validator.v2"
 )
 
 var (
@@ -43,6 +44,11 @@ var rootCmd = &cobra.Command{
 		viper.SetConfigFile(cfgPath)
 
 		if cfg, err = config.Parse(); err != nil {
+			return err
+		}
+
+		validate := validator.NewValidator()
+		if err := validate.Validate(&cfg); err != nil {
 			return err
 		}
 

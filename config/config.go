@@ -35,8 +35,8 @@ type Cache struct {
 
 // Metric is a mapping between a metric send on mqtt to a prometheus metric.
 type Metric struct {
-	PrometheusName string            `mapstructure:"prom_name"`
-	MqttTopic      string            `mapstructure:"mqtt_topic"`
+	PrometheusName string            `mapstructure:"prom_name" validate:"nonzero,regexp=^[a-zA-Z_:]([a-zA-Z0-9_:])*$"`
+	MqttTopic      string            `mapstructure:"mqtt_topic" validate:"nonzero"`
 	Help           string            `mapstructure:"help"`
 	MetricType     string            `mapstructure:"type"`
 	ConstantLabels map[string]string `mapstructure:"const_labels"`
@@ -95,7 +95,6 @@ func setDefaults() {
 
 	viper.SetDefault("server.port", 8079)
 
-	viper.SetDefault("mqtt.host", "")
 	viper.SetDefault("mqtt.port", 9641)
 	viper.SetDefault("mqtt.timeout", "3s")
 
