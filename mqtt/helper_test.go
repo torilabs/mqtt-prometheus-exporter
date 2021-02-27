@@ -71,44 +71,50 @@ func Test_findInJson(t *testing.T) {
 		path string
 	}
 	tests := []struct {
-		name string
-		args args
-		want interface{}
+		name   string
+		args   args
+		want   interface{}
+		wantOk bool
 	}{
 		{
 			name: "1st level value",
 			args: args{
 				path: "city",
 			},
-			want: "Tokyo",
+			want:   "Tokyo",
+			wantOk: true,
 		},
 		{
 			name: "2nd level value",
 			args: args{
 				path: "temperatures.in",
 			},
-			want: 22.15,
+			want:   22.15,
+			wantOk: true,
 		},
 		{
 			name: "object value",
 			args: args{
 				path: "temperatures",
 			},
-			want: map[string]interface{}{"out": 12.5, "in": 22.15},
+			want:   map[string]interface{}{"out": 12.5, "in": 22.15},
+			wantOk: true,
 		},
 		{
 			name: "value not found on 1st level",
 			args: args{
 				path: "notdefined",
 			},
-			want: nil,
+			want:   nil,
+			wantOk: false,
 		},
 		{
 			name: "value not found on 2nd level",
 			args: args{
 				path: "temperatures.notdefined",
 			},
-			want: nil,
+			want:   nil,
+			wantOk: false,
 		},
 	}
 	for _, tt := range tests {
@@ -118,8 +124,8 @@ func Test_findInJson(t *testing.T) {
 			if err := json.Unmarshal(jsonStr, &jsonMap); err != nil {
 				t.Fatal(err)
 			}
-			if got := findInJSON(jsonMap, tt.args.path); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("findInJSON() = %v, want %v", got, tt.want)
+			if got, gotOk := findInJSON(jsonMap, tt.args.path); !reflect.DeepEqual(got, tt.want) || gotOk != tt.wantOk {
+				t.Errorf("findInJSON() = (%v, %v), want (%v, %v)", got, gotOk, tt.want, tt.wantOk)
 			}
 		})
 	}

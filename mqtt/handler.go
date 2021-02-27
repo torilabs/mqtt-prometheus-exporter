@@ -61,7 +61,7 @@ func (h *messageHandler) getJSONMessageHandler() pahomqtt.MessageHandler {
 			labelValues = append(labelValues, getTopicPart(msg.Topic(), idx))
 		}
 
-		if value := findInJSON(jsonMap, h.metric.JSONField); value != nil {
+		if value, ok := findInJSON(jsonMap, h.metric.JSONField); ok {
 			floatValue, err := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
 			if err != nil {
 				log.Logger.With(zap.Error(err)).Warnf("Got data with unexpected value '%s' and failed to parse to float.", value)
