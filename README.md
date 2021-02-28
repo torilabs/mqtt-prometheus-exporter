@@ -6,6 +6,11 @@ Collected metrics (together with application metrics) are exposed on `/metrics` 
 
 Collected metric contains exact time of message read. This helps prometheus and other tools like Grafana to interpret the values correctly on time axis. The value and time are updated when new message is processed from MQTT broker and topic and all the labels match.
 
+**Raw or JSON message**
+
+MQTT Prometheus exporter consumes messages containing raw numeric value e.g. `12.5` or the value encoded in JSON e.g. `{"temperature":12.5}`. 
+To enable JSON message format and consume values use `json_field` in metrics configuration.
+
 **Example of metric**
 ```
 # HELP temperature temperature measured on home sensors
@@ -18,7 +23,7 @@ temperature{mylabel="label value",topic="/home/bedroom/temperature"} 20.155 1601
 
 MQTT Prometheus exporter requires yaml configuration file to be provided.
 
-###Config file
+### Config file
 
 If the default value match with your choice you can omit it.
 
@@ -82,6 +87,12 @@ metrics:
     prom_name: "rpi_memory"
     type: "gauge"
     help: "free memory of the Raspberry Pi"
+  - mqtt_topic: "/home/overview"
+    prom_name: "sensor_count"
+    type: "gauge"
+    # using json_field you can consume message in a valid JSON format
+    # value is then parsed from JSON tree by the given path/field
+    json_field: "total.count"
 ```
 
 Minimal config file can contain only `metrics` definition. Default values will be used for logging level (`INFO`), HTTP server port (`8079`) and MQTT broker URI (`:9641`).
@@ -104,9 +115,3 @@ Public docker image is available for multiple platforms: https://hub.docker.com/
 ```
 docker run -it -p 8079:8079 -v $(pwd)/my-config.yaml:/config.yaml --rm torilabs/mqtt-prometheus-exporter:latest
 ```
-
-
-## Future features
-* add support for different formats of MQTT message e.g. JSON
-
-Contact me in case some other interesting feature is missing.

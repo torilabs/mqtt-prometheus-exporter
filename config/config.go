@@ -41,6 +41,7 @@ type Metric struct {
 	MetricType     string            `mapstructure:"type"`
 	ConstantLabels map[string]string `mapstructure:"const_labels"`
 	TopicLabels    map[string]int    `mapstructure:"topic_labels"`
+	JSONField      string            `mapstructure:"json_field"`
 }
 
 // PrometheusDescription constructs description.

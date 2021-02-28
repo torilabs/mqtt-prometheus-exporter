@@ -13,3 +13,20 @@ func getTopicPart(topic string, idx int) string {
 		return ""
 	}
 }
+
+func findInJSON(jsonMap map[string]interface{}, path string) (interface{}, bool) {
+	if path == "" || len(jsonMap) == 0 {
+		return nil, false
+	}
+	pp := strings.SplitN(path, ".", 2)
+	if val, found := jsonMap[pp[0]]; !found {
+		return nil, false
+	} else if len(pp) > 1 {
+		if subJSONMap, ok := val.(map[string]interface{}); ok {
+			return findInJSON(subJSONMap, pp[1])
+		}
+		return nil, false
+	} else {
+		return val, true
+	}
+}
