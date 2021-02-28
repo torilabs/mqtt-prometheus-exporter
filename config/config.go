@@ -1,12 +1,28 @@
 package config
 
 import (
+	"sort"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 )
+
+// TopicLabels is metric configuration.
+type TopicLabels map[string]int
+
+// KeysInOrder sort keys always the same way.
+func (tl TopicLabels) KeysInOrder() []string {
+	keys := make([]string, len(tl))
+	i := 0
+	for k := range tl {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 // Logger configuration structure.
 type Logger struct {
@@ -39,17 +55,16 @@ type Metric struct {
 	MqttTopic      string            `mapstructure:"mqtt_topic" validate:"nonzero"`
 	Help           string            `mapstructure:"help"`
 	MetricType     string            `mapstructure:"type"`
-	ConstantLabels map[string]string `mapstructure:"const_labels"`
-	TopicLabels    map[string]int    `mapstructure:"topic_labels"`
+	ConstantLabels prometheus.Labels `mapstructure:"const_labels"`
+	TopicLabels    TopicLabels       `mapstructure:"topic_labels"`
 	JSONField      string            `mapstructure:"json_field"`
 }
 
 // PrometheusDescription constructs description.
 func (m *Metric) PrometheusDescription() *prometheus.Desc {
 	varLabels := []string{"topic"}
-	for tl := range m.TopicLabels {
-		varLabels = append(varLabels, tl)
-	}
+	varLabels = append(varLabels, m.TopicLabels.KeysInOrder()...)
+
 	return prometheus.NewDesc(
 		m.PrometheusName, m.Help, varLabels, m.ConstantLabels,
 	)
