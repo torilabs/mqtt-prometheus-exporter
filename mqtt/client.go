@@ -3,7 +3,6 @@ package mqtt
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/rand"
 	"time"
 
@@ -63,7 +62,7 @@ func NewListener(lo ...ListenerOption) (Listener, error) {
 	for _, o := range lo {
 		o(opts)
 	}
-	opts.SetClientID(fmt.Sprintf("%s%d", clientIDPrefix, rand.Intn(math.MaxInt16)))
+	opts.SetClientID(fmt.Sprintf("%s%d", clientIDPrefix, rand.Int31()))
 
 	log.Logger.Infof("Will connect to MQTT Brokers '%v'.", opts.Servers)
 	client := pahomqtt.NewClient(opts)
