@@ -260,3 +260,13 @@ func TestMetricValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestTopicLabels_KeysInOrder(t *testing.T) {
+	tl := TopicLabels{"key1": 5, "someKey": -1, "nKey": 25, "mKey": 0, "rKey": -6}
+	refValue := tl.KeysInOrder()
+	for i := 0; i < 100; i++ {
+		if got := tl.KeysInOrder(); !reflect.DeepEqual(got, refValue) {
+			t.Errorf("KeysInOrder() = %v, want %v", got, refValue)
+		}
+	}
+}
