@@ -3,6 +3,7 @@ export GO111MODULE := on
 export CGO_ENABLED := 0
 
 EXECUTABLE = mqtt-prometheus-exporter
+INTEGRATION_TEST_PATH ?= ./it
 
 all: clean check test build
 
@@ -35,6 +36,16 @@ test: prepare
 	go-junit-report -set-exit-code < report/report.txt > report/report.xml
 	gocov convert report/coverage.txt | gocov-xml > report/coverage.xml
 	go mod tidy
+
+docker.start.components:
+	docker-compose --file $(INTEGRATION_TEST_PATH)/docker-compose.yml up -d --remove-orphans mosquitto
+
+test.integration: docker.start.components
+	go test -tags=integration $(INTEGRATION_TEST_PATH) -count=1 -v
+	@$(MAKE) --no-print-directory docker.stop
+
+docker.stop:
+	docker-compose --file $(INTEGRATION_TEST_PATH)/docker-compose.yml down
 
 build:
 	@echo "Running build"
