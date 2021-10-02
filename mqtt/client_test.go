@@ -22,6 +22,10 @@ func (t *fakeToken) WaitTimeout(time.Duration) bool {
 	return !t.timeout
 }
 
+func (t *fakeToken) Done() <-chan struct{} {
+	return nil
+}
+
 func (t *fakeToken) Error() error {
 	if t.error {
 		return errors.New("error")
