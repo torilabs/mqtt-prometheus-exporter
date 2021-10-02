@@ -12,13 +12,13 @@ MAKEFLAGS += --no-print-directory
 prepare:
 	@echo "Downloading tools"
 ifeq (, $(shell which go-junit-report))
-	go get github.com/jstemmer/go-junit-report
+	go install github.com/jstemmer/go-junit-report@latest
 endif
 ifeq (, $(shell which gocov))
-	go get github.com/axw/gocov/gocov
+	go install github.com/axw/gocov/gocov@latest
 endif
 ifeq (, $(shell which gocov-xml))
-	go get github.com/AlekSi/gocov-xml
+	go install github.com/AlekSi/gocov-xml@latest
 endif
 
 check:
