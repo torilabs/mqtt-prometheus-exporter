@@ -33,7 +33,11 @@ func TestE2ETestSuite(t *testing.T) {
 func (s *e2eTestSuite) SetupSuite() {
 	os.Args = append(os.Args, "--config=./it-config.yaml")
 
-	go cmd.Execute()
+	go func() {
+		if err := cmd.Execute(); err != nil {
+			s.Fail("application start", err)
+		}
+	}()
 	time.Sleep(4 * time.Second)
 }
 
