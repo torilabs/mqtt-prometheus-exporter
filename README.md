@@ -46,6 +46,7 @@ mqtt:
   # The format should be "scheme://host", where "scheme"
   # is one of "tcp", "ssl", or "ws", "host" is the ip-address (or hostname).
   # Default values for hostname is "127.0.0.1", for schema is "tcp://".
+  # IPv6 is supported. Use host in format of "[fd12:3456:789a::1]".
   host: "ws://10.0.0.15"
   # MQTT broker port - default: 9641
   port: 9001
