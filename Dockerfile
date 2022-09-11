@@ -1,5 +1,5 @@
 # Builder image
-FROM golang:1.17 as builder
+FROM golang:1.19 as builder
 WORKDIR /workspace
 
 ENV GO111MODULE=on
@@ -11,7 +11,7 @@ ADD . .
 RUN make build
 
 # Runtime image
-FROM alpine:3.14.2
+FROM alpine:3.16.0
 WORKDIR /
 
 COPY --from=builder /workspace/mqtt-prometheus-exporter .

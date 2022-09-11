@@ -1,7 +1,7 @@
 package config
 
 import (
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"reflect"
 	"testing"
@@ -183,12 +183,12 @@ metrics:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			file, err := ioutil.TempFile("/tmp", "mqtt-prometheus-exporter-*.yaml")
+			file, err := os.CreateTemp("/tmp", "mqtt-prometheus-exporter-*.yaml")
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer os.Remove(file.Name())
-			if err := ioutil.WriteFile(file.Name(), []byte(tt.rawCfg), 0777); err != nil {
+			if err := os.WriteFile(file.Name(), []byte(tt.rawCfg), fs.ModePerm); err != nil {
 				t.Fatal(err)
 			}
 			viper.Reset()

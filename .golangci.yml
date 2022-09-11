@@ -1,17 +1,14 @@
 linters:
   disable-all: true
   enable:
-    - deadcode
     - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
     - unused
-    - varcheck
     - gofmt
-    - golint
+    - revive
     - gci
     - gofumpt
     - whitespace
