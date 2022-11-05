@@ -20,6 +20,7 @@ metrics:
     topic_labels:
       - device: 2
       - device2: -3
-  - mqtt_topic: "/home/rpi/#"
-    prom_name: "rpi"
+  - mqtt_topic: "/home/overview"
+    prom_name: "sensor_count"
     type: "gauge"
+    json_field: "total.count"
