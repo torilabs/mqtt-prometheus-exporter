@@ -61,7 +61,16 @@ func (s *e2eTestSuite) Test_EndToEnd_Metrics() {
 	}
 	defer mqttClient.Disconnect(0)
 
+	jsonPayload := `
+		{
+			"total": {
+				"count": 22,
+				"unknown": "none"
+			},
+			"random": "2"
+		}`
 	mqttClient.Publish("/home/owen/memory", 1, true, "13")
+	mqttClient.Publish("/home/overview", 1, true, jsonPayload)
 	time.Sleep(time.Second)
 
 	metricsBody := s.httpResponseBody("metrics")
@@ -69,6 +78,10 @@ func (s *e2eTestSuite) Test_EndToEnd_Metrics() {
 	s.Contains(metricsBody, `# HELP iot_memory free memory of a device`)
 	s.Contains(metricsBody, `# TYPE iot_memory gauge`)
 	s.Contains(metricsBody, `iot_memory{device="owen",device2="home",mylabel="label value",topic="/home/owen/memory"} 13`)
+
+	s.Contains(metricsBody, `# HELP sensor_count`)
+	s.Contains(metricsBody, `# TYPE sensor_count gauge`)
+	s.Contains(metricsBody, `sensor_count{topic="/home/overview"} 22`)
 }
 
 func (s *e2eTestSuite) httpResponseBody(path string) string {
