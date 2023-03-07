@@ -12,7 +12,7 @@ require (
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.24.0
-	gopkg.in/validator.v2 v2.0.0-20210331031555-b37d688a7fb0
+	gopkg.in/validator.v2 v2.0.1
 )
 
 require (
