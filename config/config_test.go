@@ -30,7 +30,7 @@ func TestMetric_PrometheusDescription(t *testing.T) {
 					"const_label": "label_value",
 				},
 			},
-			want: "Desc{fqName: \"name\", help: \"help msg\", constLabels: {const_label=\"label_value\"}, variableLabels: [{topic <nil>} {device <nil>}]}",
+			want: "Desc{fqName: \"name\", help: \"help msg\", constLabels: {const_label=\"label_value\"}, variableLabels: {topic,device}}",
 		},
 	}
 	for _, tt := range tests {
