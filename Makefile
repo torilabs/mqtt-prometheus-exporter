@@ -37,15 +37,8 @@ test: prepare
 	gocov convert report/coverage.txt | gocov-xml > report/coverage.xml
 	go mod tidy
 
-docker.start.components:
-	docker-compose --file $(INTEGRATION_TEST_PATH)/docker-compose.yml up -d --remove-orphans mosquitto
-
-test.integration: docker.start.components
+test.integration:
 	go test -tags=integration $(INTEGRATION_TEST_PATH) -count=1 -v
-	@$(MAKE) --no-print-directory docker.stop
-
-docker.stop:
-	docker-compose --file $(INTEGRATION_TEST_PATH)/docker-compose.yml down
 
 build:
 	@echo "Running build"
