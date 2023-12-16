@@ -11,7 +11,7 @@ ADD . .
 RUN make build
 
 # Runtime image
-FROM alpine:3.16.0
+FROM alpine:3.19.0
 WORKDIR /
 
 COPY --from=builder /workspace/mqtt-prometheus-exporter .
