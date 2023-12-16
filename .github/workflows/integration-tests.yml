@@ -10,9 +10,12 @@ jobs:
   integration-test:
     name: integration-test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mosquitto-version: [ 1.6.12, 1.6.15, 2.0.18 ]
     services:
       mosquitto:
-        image: eclipse-mosquitto:1.6.12
+        image: eclipse-mosquitto:${{ matrix.mosquitto-version }}
         ports:
           - 1883:1883
     steps:
