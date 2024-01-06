@@ -1,10 +1,10 @@
-name: verify-dockerfile
+name: dockerfile validator
 
 on:
-  push:
-    branches: [ master ]
   pull_request:
-    branches: [ master ]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/dockerfile-validator.yml'
 
 jobs:
   test:
