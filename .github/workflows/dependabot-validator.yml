@@ -1,12 +1,13 @@
-name: dependabot validate
+name: dependabot validator
 
 on:
   pull_request:
     paths:
       - '.github/dependabot.yml'
-      - '.github/workflows/dependabot-validate.yml'
+      - '.github/workflows/dependabot-validator.yml'
 jobs:
-  validate:
+  test:
+    name: verify-dependabot
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

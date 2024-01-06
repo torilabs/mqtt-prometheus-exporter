@@ -1,13 +1,13 @@
-name: integration-tests
+name: integration tests
 
 on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
+    branches: [ '*' ]
 
 jobs:
-  integration-test:
+  test:
     name: integration-test
     runs-on: ubuntu-latest
     services:
