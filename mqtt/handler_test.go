@@ -25,10 +25,10 @@ func (c *fakeCollector) Observe(metric config.Metric, topic string, v float64, l
 	c.obsLabelValues = labelValues
 }
 
-func (c *fakeCollector) Describe(ch chan<- *prometheus.Desc) {
+func (c *fakeCollector) Describe(chan<- *prometheus.Desc) {
 }
 
-func (c *fakeCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *fakeCollector) Collect(chan<- prometheus.Metric) {
 }
 
 type fakeMessage struct {
