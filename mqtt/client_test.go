@@ -53,27 +53,27 @@ func (c *fakeClient) Connect() pahomqtt.Token {
 	return nil
 }
 
-func (c *fakeClient) Disconnect(quiesce uint) {
+func (c *fakeClient) Disconnect(uint) {
 	c.disconnectInvocations++
 }
 
-func (c *fakeClient) Publish(topic string, qos byte, retained bool, payload interface{}) pahomqtt.Token {
+func (c *fakeClient) Publish(string, byte, bool, interface{}) pahomqtt.Token {
 	return nil
 }
 
-func (c *fakeClient) Subscribe(topic string, qos byte, callback pahomqtt.MessageHandler) pahomqtt.Token {
+func (c *fakeClient) Subscribe(string, byte, pahomqtt.MessageHandler) pahomqtt.Token {
 	return &fakeToken{timeout: c.tokenTimeout, error: c.tokenError}
 }
 
-func (c *fakeClient) SubscribeMultiple(filters map[string]byte, callback pahomqtt.MessageHandler) pahomqtt.Token {
+func (c *fakeClient) SubscribeMultiple(map[string]byte, pahomqtt.MessageHandler) pahomqtt.Token {
 	return nil
 }
 
-func (c *fakeClient) Unsubscribe(topics ...string) pahomqtt.Token {
+func (c *fakeClient) Unsubscribe(...string) pahomqtt.Token {
 	return nil
 }
 
-func (c *fakeClient) AddRoute(topic string, callback pahomqtt.MessageHandler) {
+func (c *fakeClient) AddRoute(string, pahomqtt.MessageHandler) {
 }
 
 func (c *fakeClient) OptionsReader() pahomqtt.ClientOptionsReader {
