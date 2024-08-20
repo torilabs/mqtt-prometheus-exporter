@@ -1,6 +1,8 @@
 module github.com/torilabs/mqtt-prometheus-exporter
 
-go 1.21
+go 1.23
+
+toolchain go1.23.0
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.0
