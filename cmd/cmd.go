@@ -37,7 +37,7 @@ var rootCmd = &cobra.Command{
 	Long:              "MQTT Prometheus Exporter exports MQTT topics in Prometheus format.",
 	SilenceErrors:     true,
 	SilenceUsage:      true,
-	PreRunE: func(cmd *cobra.Command, args []string) (err error) {
+	PreRunE: func(cmd *cobra.Command, _ []string) (err error) {
 		if err = viper.BindPFlags(cmd.Flags()); err != nil {
 			return
 		}
@@ -54,7 +54,7 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if err := log.Setup(cfg); err != nil {
 			return err
 		}
