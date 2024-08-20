@@ -147,7 +147,7 @@ func Test_listener_Subscribe(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		mh := func(client pahomqtt.Client, msg pahomqtt.Message) {}
+		mh := func(pahomqtt.Client, pahomqtt.Message) {}
 		t.Run(tt.name, func(t *testing.T) {
 			l := &listener{
 				c: tt.fields.c,
