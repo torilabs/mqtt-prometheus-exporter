@@ -7,7 +7,7 @@ ENV GO111MODULE=on
 COPY go.mod go.sum ./
 RUN go mod download
 
-ADD . .
+COPY . .
 RUN make build
 
 # Runtime image
