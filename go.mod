@@ -2,8 +2,6 @@ module github.com/torilabs/mqtt-prometheus-exporter
 
 go 1.23
 
-toolchain go1.23.0
-
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/etherlabsio/healthcheck/v2 v2.0.0
@@ -11,7 +9,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.1
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	gopkg.in/validator.v2 v2.0.1
