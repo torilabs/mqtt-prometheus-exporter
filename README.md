@@ -111,6 +111,11 @@ Run the binary with optional `config` parameter provided:
 ```
 If you don't provide `config` parameter, application will search on default path: `./config.yaml`.
 
+## Healthcheck
+Remember to use `/healthcheck` endpoint to verify exporter works correctly and is connected to MQTT broker. Healthcheck returns `HTTP 200` when healthy. This is standard in cloud computing.
+
+In case app is unhealthy (returning non HTTP 200 code) n times in a row, try to restart the container.
+
 ## Docker image
 Public docker image is available for multiple platforms: https://hub.docker.com/r/torilabs/mqtt-prometheus-exporter
 ```
