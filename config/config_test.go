@@ -206,6 +206,39 @@ metrics:
 	}
 }
 
+func TestParse_Errors(t *testing.T) {
+	t.Run("file not exist", func(t *testing.T) {
+		viper.Reset()
+		viper.SetConfigFile("/tmp/not-exist.yaml")
+
+		_, err := Parse()
+		expErrMsg := "failed to read configuration: open /tmp/not-exist.yaml: no such file or directory"
+		if err.Error() != expErrMsg {
+			t.Errorf("Parse() error = %v, want '%s'", err, expErrMsg)
+		}
+	})
+
+	t.Run("invalid file content", func(t *testing.T) {
+		file, err := os.CreateTemp("/tmp", "mqtt-prometheus-exporter-*.yaml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(file.Name())
+		if err := os.WriteFile(file.Name(), []byte("{"), fs.ModePerm); err != nil {
+			t.Fatal(err)
+		}
+
+		viper.Reset()
+		viper.SetConfigFile(file.Name())
+
+		_, err = Parse()
+		expErrMsg := "failed to read configuration: While parsing config: yaml: line 1: did not find expected node content"
+		if err.Error() != expErrMsg {
+			t.Errorf("Parse() error = %v, want '%s'", err, expErrMsg)
+		}
+	})
+}
+
 func TestMetricValidation(t *testing.T) {
 	tests := []struct {
 		name    string

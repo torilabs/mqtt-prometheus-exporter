@@ -7,7 +7,6 @@ import (
 	"time"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/pkg/errors"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 )
 
@@ -69,15 +68,15 @@ func NewListener(lo ...ListenerOption) (Listener, error) {
 	token := client.Connect()
 
 	if ok := token.WaitTimeout(opts.PingTimeout); !ok {
-		return nil, errors.Errorf("MQTT connection timed out in '%v'", opts.PingTimeout)
+		return nil, fmt.Errorf("MQTT connection timed out in '%v'", opts.PingTimeout)
 	}
 
 	if err := token.Error(); err != nil {
-		return nil, errors.Wrap(err, "MQTT connection failed")
+		return nil, fmt.Errorf("MQTT connection failed: %w", err)
 	}
 
 	if !client.IsConnected() {
-		return nil, errors.Errorf("MQTT connection unsuccessful to brokers '%v'", opts.Servers)
+		return nil, fmt.Errorf("MQTT connection unsuccessful to brokers '%v'", opts.Servers)
 	}
 	log.Logger.Infof("Connected to MQTT Brokers '%v'.", opts.Servers)
 
@@ -89,10 +88,13 @@ func (l *listener) Subscribe(topic string, mh pahomqtt.MessageHandler) error {
 	token := l.c.Subscribe(topic, 0, mh)
 
 	if ok := token.WaitTimeout(l.timeout); !ok {
-		return errors.Errorf("MQTT topic '%s' subscription timed out in '%v'", topic, l.timeout)
+		return fmt.Errorf("MQTT topic '%s' subscription timed out in '%v'", topic, l.timeout)
 	}
 
-	return errors.Wrapf(token.Error(), "MQTT topic '%s' subscription failed", topic)
+	if token.Error() != nil {
+		return fmt.Errorf("MQTT topic '%s' subscription failed: %w", topic, token.Error())
+	}
+	return nil
 }
 
 func (l *listener) Close() {
@@ -104,7 +106,7 @@ func (l *listener) Close() {
 
 func (l *listener) Check(_ context.Context) error {
 	if !l.c.IsConnectionOpen() {
-		return errors.New("MQTT client disconnected")
+		return fmt.Errorf("MQTT client disconnected")
 	}
 	return nil
 }

@@ -1,10 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 )
@@ -94,13 +94,13 @@ type Configuration struct {
 // Parse and validate viper config.
 func Parse() (cfg Configuration, err error) {
 	if err := viper.ReadInConfig(); err != nil {
-		return cfg, errors.Wrap(err, "failed to read configuration")
+		return cfg, fmt.Errorf("failed to read configuration: %w", err)
 	}
 
 	setDefaults()
 
 	if err := viper.Unmarshal(&cfg); err != nil {
-		return cfg, errors.Wrap(err, "failed to deserialize config")
+		return cfg, fmt.Errorf("failed to deserialize config: %w", err)
 	}
 
 	return cfg, nil
