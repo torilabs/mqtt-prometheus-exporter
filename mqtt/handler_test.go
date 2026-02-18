@@ -167,7 +167,7 @@ func Test_messageHandler(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			t.Run(fmt.Sprintf("%s-%d", tt.name, i+1), func(t *testing.T) {
 				collector := fakeCollector{}
 				mh := NewMessageHandler(tt.args.metric, &collector)

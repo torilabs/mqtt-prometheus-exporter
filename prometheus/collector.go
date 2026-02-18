@@ -53,8 +53,8 @@ func (c *memoryCachedCollector) Observe(metric config.Metric, topic string, v fl
 }
 
 func (c *memoryCachedCollector) Describe(ch chan<- *prometheus.Desc) {
-	for i := range c.descriptions {
-		ch <- c.descriptions[i]
+	for _, desc := range c.descriptions {
+		ch <- desc
 	}
 }
 
