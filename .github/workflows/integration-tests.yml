@@ -7,14 +7,12 @@ on:
     branches: [ '*' ]
 
 jobs:
-  test:
-    name: integration-test
+  test-anonymous:
+    name: integration-test (mosquitto ${{ matrix.mosquitto-version }})
     runs-on: ubuntu-latest
-    services:
-      mosquitto:
-        image: eclipse-mosquitto:1.6.12
-        ports:
-          - 1883:1883
+    strategy:
+      matrix:
+        mosquitto-version: ['1.6.12', '1.6.14', '1.6.15', '2.0.16', '2.0.22', '2.1.0-alpine']
     steps:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v6
@@ -24,5 +22,66 @@ jobs:
         cache: false
         go-version-file: go.mod
       id: go
-    - name: Test
-      run: make test.integration
+    - name: Create Mosquitto config for v2
+      run: |
+        mkdir -p /tmp/mosquitto
+        cat > /tmp/mosquitto/mosquitto.conf <<EOF
+        listener 1883
+        allow_anonymous true
+        EOF
+    - name: Start Mosquitto ${{ matrix.mosquitto-version }}
+      run: |
+        docker run -d --name mosquitto \
+          -p 1883:1883 \
+          -v /tmp/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf \
+          eclipse-mosquitto:${{ matrix.mosquitto-version }}
+    - name: Wait for Mosquitto to be ready
+      run: |
+        timeout 30 bash -c 'until nc -z localhost 1883; do sleep 1; done'
+    - name: Run integration tests
+      run: go test -tags=integration ./it -count=1 -v
+
+  test-authenticated:
+    name: integration-test-auth (mosquitto ${{ matrix.mosquitto-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mosquitto-version: ['1.6.12', '1.6.14', '1.6.15', '2.0.16', '2.0.22']
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v6
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        cache: false
+        go-version-file: go.mod
+      id: go
+    - name: Create Mosquitto password file
+      run: |
+        mkdir -p /tmp/mosquitto-passwd
+        # Create a temporary container to generate password file
+        docker run --rm -v /tmp/mosquitto-passwd:/mosquitto/config eclipse-mosquitto:${{ matrix.mosquitto-version }} \
+          sh -c "mosquitto_passwd -c -b /mosquitto/config/password.txt testuser testpass"
+    - name: Create Mosquitto config with authentication
+      run: |
+        mkdir -p /tmp/mosquitto
+        cat > /tmp/mosquitto/mosquitto.conf <<EOF
+        listener 1883
+        allow_anonymous false
+        password_file /mosquitto/config/password.txt
+        EOF
+    - name: Start Mosquitto ${{ matrix.mosquitto-version }} with auth
+      run: |
+        docker run -d --name mosquitto-auth \
+          -p 1883:1883 \
+          -v /tmp/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf \
+          -v /tmp/mosquitto-passwd/password.txt:/mosquitto/config/password.txt \
+          eclipse-mosquitto:${{ matrix.mosquitto-version }}
+    - name: Wait for Mosquitto to be ready
+      run: |
+        timeout 30 bash -c 'until nc -z localhost 1883; do sleep 1; done'
+    - name: Run integration tests with authentication
+      env:
+        MQTT_USERNAME: testuser
+        MQTT_PASSWORD: testpass
+      run: go test -tags=integration ./it -count=1 -v

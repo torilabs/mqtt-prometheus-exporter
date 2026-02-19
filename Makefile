@@ -30,9 +30,6 @@ test: prepare
 	go-junit-report -set-exit-code < report/report.txt > report/report.xml
 	go mod tidy
 
-test.integration:
-	go test -tags=integration $(INTEGRATION_TEST_PATH) -count=1 -v
-
 build:
 	@echo "Running build"
 	go build -v -o "$(EXECUTABLE)"
