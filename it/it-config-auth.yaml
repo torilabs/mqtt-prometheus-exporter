@@ -1,0 +1,28 @@
+logging:
+  level: DEBUG
+  developmentMode: false
+
+server:
+  port: 8079
+
+mqtt:
+  host: "localhost"
+  port: 1883
+  timeout: 3s
+  username: "testuser"
+  password: "testpass"
+
+metrics:
+  - mqtt_topic: "/home/+/memory"
+    prom_name: "iot_memory"
+    type: "gauge"
+    help: "free memory of a device"
+    const_labels:
+      - mylabel: "label value"
+    topic_labels:
+      - device: 2
+      - device2: -3
+  - mqtt_topic: "/home/overview"
+    prom_name: "sensor_count"
+    type: "gauge"
+    json_field: "total.count"

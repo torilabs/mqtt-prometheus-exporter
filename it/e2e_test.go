@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package it_test
@@ -31,7 +32,11 @@ func TestE2ETestSuite(t *testing.T) {
 }
 
 func (s *e2eTestSuite) SetupSuite() {
-	os.Args = append(os.Args, "--config=./it-config.yaml")
+	configFile := "./it-config.yaml"
+	if os.Getenv("MQTT_USERNAME") != "" && os.Getenv("MQTT_PASSWORD") != "" {
+		configFile = "./it-config-auth.yaml"
+	}
+	os.Args = append(os.Args, fmt.Sprintf("--config=%s", configFile))
 
 	go func() {
 		if err := cmd.Execute(); err != nil {
@@ -51,6 +56,14 @@ func (s *e2eTestSuite) Test_EndToEnd_Metrics() {
 	opts := pahomqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("%s%d", "e2e-test-", rand.Int31()))
 	opts.AddBroker(fmt.Sprintf("localhost:%d", s.mqttPort))
+
+	if username := os.Getenv("MQTT_USERNAME"); username != "" {
+		opts.SetUsername(username)
+	}
+	if password := os.Getenv("MQTT_PASSWORD"); password != "" {
+		opts.SetPassword(password)
+	}
+
 	mqttClient := pahomqtt.NewClient(opts)
 	token := mqttClient.Connect()
 	if ok := token.WaitTimeout(opts.PingTimeout); !ok {
