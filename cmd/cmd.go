@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/etherlabsio/healthcheck/v2"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -76,9 +77,21 @@ var rootCmd = &cobra.Command{
 		checkers = append(checkers, healthcheck.WithChecker("MQTT", l))
 
 		cl := prometheus.NewCollector(cfg.Cache.Expiration, cfg.Metrics)
+
+		topicHandlers := make(map[string][]pahomqtt.MessageHandler)
 		for _, m := range cfg.Metrics {
 			mh := mqtt.NewMessageHandler(m, cl)
-			if err := l.Subscribe(m.MqttTopic, mh); err != nil {
+			topicHandlers[m.MqttTopic] = append(topicHandlers[m.MqttTopic], mh)
+		}
+
+		for topic, handlers := range topicHandlers {
+			var handler pahomqtt.MessageHandler
+			if len(handlers) == 1 {
+				handler = handlers[0]
+			} else {
+				handler = mqtt.NewDelegatingMessageHandler(handlers...)
+			}
+			if err := l.Subscribe(topic, handler); err != nil {
 				return err
 			}
 		}

@@ -8,8 +8,37 @@ Collected metric contains exact time of message read. This helps prometheus and 
 
 **Raw or JSON message**
 
-MQTT Prometheus exporter consumes messages containing raw numeric value e.g. `12.5` or the value encoded in JSON e.g. `{"temperature":12.5}`. 
+MQTT Prometheus exporter consumes messages containing raw numeric value e.g. `12.5` or the value encoded in JSON e.g. `{"temperature":12.5}`.
 To enable JSON message format and consume values use `json_field` in metrics configuration.
+
+**Multiple metrics from single JSON message**
+
+You can configure multiple metrics to be extracted from the same MQTT topic. This is particularly useful when working with JSON messages that contain multiple values. Each metric definition can specify a different `json_field` to extract different values from the same message.
+
+For example, given a JSON message on topic `/home/overview`:
+```json
+{
+  "total": {
+    "count": 22
+  },
+  "enabled": 1
+}
+```
+
+You can define multiple metrics for the same topic:
+```yaml
+metrics:
+  - mqtt_topic: "/home/overview"
+    prom_name: "sensor_count"
+    type: "gauge"
+    json_field: "total.count"
+  - mqtt_topic: "/home/overview"
+    prom_name: "sensor_enabled"
+    type: "gauge"
+    json_field: "enabled"
+```
+
+The exporter will subscribe once to `/home/overview` and extract both metrics from each received message, making it efficient for complex JSON payloads.
 
 **Example of metric**
 ```

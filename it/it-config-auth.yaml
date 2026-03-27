@@ -26,3 +26,8 @@ metrics:
     prom_name: "sensor_count"
     type: "gauge"
     json_field: "total.count"
+  - mqtt_topic: "/home/overview"
+    prom_name: "sensor_enabled"
+    type: "gauge"
+    help: "sensor is enabled"
+    json_field: "enabled"
