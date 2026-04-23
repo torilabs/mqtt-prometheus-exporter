@@ -18,6 +18,7 @@ import (
 	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
 	"go.uber.org/zap"
 	"gopkg.in/validator.v2"
+	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 var (
@@ -76,12 +77,41 @@ var rootCmd = &cobra.Command{
 		checkers = append(checkers, healthcheck.WithChecker("MQTT", l))
 
 		cl := prometheus.NewCollector(cfg.Cache.Expiration, cfg.Metrics)
+
+		// Exactly one subscription per unique MQTT topic.
+		// If multiple metrics use the same mqtt_topic, dispatch the same MQTT message
+		// to all handlers configured for that topic.
+		topicHandlers := make(map[string][]pahomqtt.MessageHandler, len(cfg.Metrics))
+
 		for _, m := range cfg.Metrics {
-			mh := mqtt.NewMessageHandler(m, cl)
-			if err := l.Subscribe(m.MqttTopic, mh); err != nil {
+			topicHandlers[m.MqttTopic] = append(
+				topicHandlers[m.MqttTopic],
+				mqtt.NewMessageHandler(m, cl),
+			)
+		}
+
+		for topic, handlers := range topicHandlers {
+			// Capture loop variables safely for the closure
+			topic := topic
+			handlers := handlers
+
+			combinedHandler := func(client pahomqtt.Client, msg pahomqtt.Message) {
+				for _, h := range handlers {
+					h(client, msg)
+				}
+			}
+
+			log.Logger.Infof(
+				"Will subscribe to topic '%s' with %d parser(s).",
+				topic,
+				len(handlers),
+			)
+
+			if err := l.Subscribe(topic, combinedHandler); err != nil {
 				return err
 			}
 		}
+
 
 		if err := prom.Register(cl); err != nil {
 			return err
