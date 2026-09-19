@@ -31,9 +31,9 @@ jobs:
     - name: Build binary for ${{ matrix.goos }}/${{ matrix.goarch }}
       run: |
         if [ "${{ matrix.goarch }}" = "arm" ]; then
-          GOOS=${{ matrix.goos }} GOARCH=arm GOARM=7 go build -v -o "dist/${{ env.BINARY_NAME }}"
+          GOOS=${{ matrix.goos }} GOARCH=arm GOARM=7 go build -v -ldflags "-X github.com/torilabs/mqtt-prometheus-exporter/version.Version=${{ env.TAG }}" -o "dist/${{ env.BINARY_NAME }}"
         else
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o "dist/${{ env.BINARY_NAME }}"
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -ldflags "-X github.com/torilabs/mqtt-prometheus-exporter/version.Version=${{ env.TAG }}" -o "dist/${{ env.BINARY_NAME }}"
         fi
         tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist/ .
       env:

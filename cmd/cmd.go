@@ -17,6 +17,7 @@ import (
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 	"github.com/torilabs/mqtt-prometheus-exporter/mqtt"
 	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
+	"github.com/torilabs/mqtt-prometheus-exporter/version"
 	"go.uber.org/zap"
 	"gopkg.in/validator.v2"
 )
@@ -66,6 +67,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		defer log.Logger.Sync()
+		log.Logger.Infof("Starting mqtt-prometheus-exporter version %s.", version.String())
 
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

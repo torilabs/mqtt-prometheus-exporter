@@ -209,8 +209,12 @@ Run the binary with optional `config` parameter provided:
 ```
 If you don't provide `config` parameter, application will search on default path: `./config.yaml`.
 
+At startup the exporter logs its version, e.g. `Starting mqtt-prometheus-exporter version v1.2.3 (commit 0123456789ab, go1.25.0, linux/amd64).`
+The version is set at build time: `make build` uses `git describe` unless `VERSION` is provided (`make build VERSION=v1.2.3`), and it shows `dev` for a plain `go build`.
+
 ## Docker image
 Public docker image is available for multiple platforms: https://hub.docker.com/r/torilabs/mqtt-prometheus-exporter
 ```
 docker run -it -p 8079:8079 -v $(pwd)/my-config.yaml:/config.yaml --rm torilabs/mqtt-prometheus-exporter:latest
 ```
+To build the image yourself with a version: `docker build --build-arg VERSION=v1.2.3 -t mqtt-prometheus-exporter .`
