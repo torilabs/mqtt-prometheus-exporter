@@ -83,8 +83,12 @@ mqtt:
   username: ""
   # password for connection to MQTT broker
   password: ""
-  #connection timeout - default: 3s
+  # timeout of the connection and of topic subscriptions - default: 3s
   timeout: 3s
+  # interval of keep alive messages sent to the broker, at least 1s - default: 30s
+  keep_alive: 30s
+  # how long a keep alive response is awaited before the connection is considered lost - default: 10s
+  ping_timeout: 10s
 
 # internal cache holding collected metrics configuration
 cache:
@@ -127,6 +131,16 @@ metrics:
 
 Minimal config file can contain only `metrics` definition. Default values will be used for logging level (`INFO`), HTTP server port (`8079`) and MQTT broker URI (`:9641`).
 
+
+## Resilience
+
+The exporter does not try to reconnect to the MQTT broker. Subscriptions are not restored by a reconnection, so a client that reconnects would look healthy while receiving nothing. Instead, the exporter terminates with a non-zero exit code when:
+- the broker can not be reached at startup, or a subscription is refused by the broker,
+- the connection to the broker is lost (detected by a closed connection or by a missing keep alive response within `mqtt.ping_timeout`).
+
+It is meant to run under an orchestrator that restarts it, e.g. Kubernetes (`restartPolicy: Always`, the default of a Deployment). Collected values are kept in memory only, so they are dropped on restart. Keep in mind that Kubernetes delays repeated restarts (`CrashLoopBackOff`, up to 5 minutes) when the broker stays unavailable for a long time.
+
+A message handler that panics does not stop the exporter: the panic is logged and other handlers keep working.
 
 ## Build & Run
 To build the binary run:
