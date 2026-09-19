@@ -53,6 +53,12 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		for i := range cfg.Metrics {
+			if err := cfg.Metrics[i].ValidateLabels(); err != nil {
+				return fmt.Errorf("invalid metric '%s': %w", cfg.Metrics[i].PrometheusName, err)
+			}
+		}
+
 		return nil
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {

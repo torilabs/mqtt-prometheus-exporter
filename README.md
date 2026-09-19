@@ -40,6 +40,32 @@ metrics:
 
 The exporter will subscribe once to `/home/overview` and extract both metrics from each received message, making it efficient for complex JSON payloads.
 
+**Labels from JSON message properties**
+
+Use `json_labels` (together with `json_field`) to turn properties of a JSON message into Prometheus labels. It maps a label name to a dotted path of the property in the message, e.g. `{"temp": 21.5, "location": {"room": "kitchen"}, "meta": {"floor": 2}}`:
+```yaml
+metrics:
+  - mqtt_topic: "/home/+/state"
+    prom_name: "temperature"
+    type: "gauge"
+    json_field: "temp"
+    topic_labels:
+      - device: 2
+    json_labels:
+      room: "location.room"
+      floor: "meta.floor"
+```
+The message above received on `/home/sensor1/state` produces:
+```
+temperature{device="sensor1",floor="2",room="kitchen",topic="/home/sensor1/state"} 21.5 1601809393358
+```
+- Label order is deterministic: `topic`, topic labels, then JSON labels, each sorted alphabetically by label name.
+- Strings, numbers and booleans are accepted. Numbers are written without exponent (`2`, `12.5`) and booleans as `true`/`false`. Very large integers may lose precision, as JSON numbers are parsed as 64-bit floats.
+- If a configured property is missing, `null`, an array or an object, the message is skipped and a warning is logged.
+- Messages from the same topic with different JSON label values are exported as separate series; messages with identical label values update the existing series.
+- A JSON label name must be a valid Prometheus label name, must not start with `__` and must not collide with `topic`, `const_labels` or `topic_labels`. `json_labels` requires `json_field`. Invalid configuration prevents the exporter from starting.
+- Every distinct combination of label values creates a new series. Use only properties with a small, bounded set of values (e.g. room, firmware version) and never identifiers, timestamps or free text, otherwise anyone able to publish to the broker can inflate memory usage. Series expire according to `cache.expiration`.
+
 **Example of metric**
 ```
 # HELP temperature temperature measured on home sensors
@@ -123,6 +149,10 @@ metrics:
     # using json_field you can consume message in a valid JSON format
     # value is then parsed from JSON tree by the given path/field
     json_field: "total.count"
+    # using json_labels you can add labels from properties of the JSON message
+    # label name -> path/field of the property (string, number or boolean)
+    json_labels:
+      room: "location.room"
 ```
 
 Minimal config file can contain only `metrics` definition. Default values will be used for logging level (`INFO`), HTTP server port (`8079`) and MQTT broker URI (`:9641`).

@@ -165,6 +165,89 @@ func Test_messageHandler(t *testing.T) {
 			},
 			wantObserved: false,
 		},
+		{
+			name: "JSON labels from nested properties combined with topic labels",
+			args: args{
+				metric: config.Metric{
+					MqttTopic:   "/topic/level2/level3/#",
+					TopicLabels: map[string]int{"customTopic": 2, "another": 3},
+					JSONField:   "size",
+					JSONLabels:  map[string]string{"zone": "location.zone", "city": "city", "deep": "a.b.c"},
+				},
+			},
+			msg: fakeMessage{
+				topic:   "/topic/level2/level3/device",
+				payload: []byte(`{"city":"Tokyo", "location": {"zone": "north"}, "a": {"b": {"c": "deep value"}}, "size": 7}`),
+			},
+			wantObserved:    true,
+			wantValue:       7,
+			wantLabelValues: []string{"/topic/level2/level3/device", "level3", "level2", "Tokyo", "deep value", "north"},
+		},
+		{
+			name: "JSON labels scalar conversion",
+			args: args{
+				metric: config.Metric{
+					MqttTopic:  "/topic",
+					JSONField:  "size",
+					JSONLabels: map[string]string{"a_str": "s", "b_int": "i", "c_float": "f", "d_true": "t", "e_false": "b", "f_empty": "e", "g_big": "big"},
+				},
+			},
+			msg: fakeMessage{
+				topic:   "/topic",
+				payload: []byte(`{"size": 1, "s": "text", "i": 42, "f": 12.5, "t": true, "b": false, "e": "", "big": 1e21}`),
+			},
+			wantObserved:    true,
+			wantValue:       1,
+			wantLabelValues: []string{"/topic", "text", "42", "12.5", "true", "false", "", "1000000000000000000000"},
+		},
+		{
+			name: "JSON label property missing",
+			args: args{
+				metric: config.Metric{MqttTopic: "/topic", JSONField: "size", JSONLabels: map[string]string{"room": "room"}},
+			},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"size": 1}`)},
+			wantObserved: false,
+		},
+		{
+			name: "JSON label nested property missing",
+			args: args{
+				metric: config.Metric{MqttTopic: "/topic", JSONField: "size", JSONLabels: map[string]string{"room": "a.b"}},
+			},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"size": 1, "a": {"c": "x"}}`)},
+			wantObserved: false,
+		},
+		{
+			name: "JSON label property null",
+			args: args{
+				metric: config.Metric{MqttTopic: "/topic", JSONField: "size", JSONLabels: map[string]string{"room": "room"}},
+			},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"size": 1, "room": null}`)},
+			wantObserved: false,
+		},
+		{
+			name: "JSON label property array",
+			args: args{
+				metric: config.Metric{MqttTopic: "/topic", JSONField: "size", JSONLabels: map[string]string{"room": "room"}},
+			},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"size": 1, "room": ["a"]}`)},
+			wantObserved: false,
+		},
+		{
+			name: "JSON label property object",
+			args: args{
+				metric: config.Metric{MqttTopic: "/topic", JSONField: "size", JSONLabels: map[string]string{"room": "room"}},
+			},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"size": 1, "room": {"a": "b"}}`)},
+			wantObserved: false,
+		},
+		{
+			name: "JSON labels not observed when value is missing",
+			args: args{
+				metric: config.Metric{MqttTopic: "/topic", JSONField: "size", JSONLabels: map[string]string{"room": "room"}},
+			},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"room": "kitchen"}`)},
+			wantObserved: false,
+		},
 	}
 	for _, tt := range tests {
 		for i := range 100 {

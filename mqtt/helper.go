@@ -1,6 +1,9 @@
 package mqtt
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 func getTopicPart(topic string, idx int) string {
 	s := strings.Split(topic, "/")
@@ -27,4 +30,19 @@ func findInJSON(jsonMap map[string]interface{}, path string) (interface{}, bool)
 		return val, true
 	}
 	return nil, false
+}
+
+// labelValueOf converts a scalar JSON value to a label value.
+// Null, arrays and objects are not supported.
+func labelValueOf(v interface{}) (string, bool) {
+	switch t := v.(type) {
+	case string:
+		return t, true
+	case float64:
+		return strconv.FormatFloat(t, 'f', -1, 64), true
+	case bool:
+		return strconv.FormatBool(t), true
+	default:
+		return "", false
+	}
 }
