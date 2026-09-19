@@ -3,6 +3,7 @@ package mqtt
 import (
 	"context"
 	"errors"
+	"regexp"
 	"testing"
 	"time"
 
@@ -265,5 +266,21 @@ func TestListenerOptions(t *testing.T) {
 	}
 	if opts.PingTimeout != 12*time.Second {
 		t.Errorf("PingTimeout = %v, want 12s", opts.PingTimeout)
+	}
+}
+
+func Test_newClientID(t *testing.T) {
+	// MQTT 3.1: at most 23 characters; MQTT 3.1.1 and 5.0: brokers must accept 1-23 bytes of 0-9a-zA-Z.
+	allowed := regexp.MustCompile(`^[0-9a-zA-Z]{1,23}$`)
+	seen := make(map[string]struct{})
+	for range 1000 {
+		id := newClientID()
+		if !allowed.MatchString(id) {
+			t.Fatalf("newClientID() = %q, want 1 to 23 characters among 0-9a-zA-Z", id)
+		}
+		if _, dup := seen[id]; dup {
+			t.Fatalf("newClientID() returned %q twice", id)
+		}
+		seen[id] = struct{}{}
 	}
 }
