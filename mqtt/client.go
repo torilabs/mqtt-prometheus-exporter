@@ -2,9 +2,9 @@ package mqtt
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
-	"math/rand"
 	"time"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
@@ -13,7 +13,10 @@ import (
 )
 
 const (
-	clientIDPrefix = "mqtt-prometheus-exporter-"
+	// clientIDPrefix and clientIDRandomLength keep the client ID within what every MQTT broker must accept
+	// (MQTT 3.1, 3.1.1 and 5.0): 1 to 23 bytes made of the characters 0-9a-zA-Z only.
+	clientIDPrefix       = "mqttprom"
+	clientIDRandomLength = 12
 	// subscribeFailureCode is the SUBACK return code sent by a broker that refused a subscription.
 	subscribeFailureCode = 0x80
 )
@@ -90,7 +93,7 @@ func NewListener(lo ...ListenerOption) (Listener, error) {
 	for _, o := range lo {
 		o(opts)
 	}
-	opts.SetClientID(fmt.Sprintf("%s%d", clientIDPrefix, rand.Int31()))
+	opts.SetClientID(newClientID())
 
 	// Subscriptions are not restored by a reconnection (clean session), so a lost connection must end the process
 	// instead of leaving a connected client that silently receives nothing.
@@ -117,6 +120,12 @@ func NewListener(lo ...ListenerOption) (Listener, error) {
 	log.Logger.Infof("Connected to MQTT Brokers '%v'.", opts.Servers)
 
 	return &listener{c: client, timeout: opts.ConnectTimeout, lost: lost}, nil
+}
+
+// newClientID generates a unique client ID. Two clients sharing an ID make the broker drop the older connection,
+// which would make both exporters terminate in turns, so the random part is taken from a cryptographic source.
+func newClientID() string {
+	return clientIDPrefix + rand.Text()[:clientIDRandomLength]
 }
 
 func newConnectionLostHandler(lost chan<- error) pahomqtt.ConnectionLostHandler {
