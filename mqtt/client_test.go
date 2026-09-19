@@ -12,6 +12,11 @@ import (
 type fakeToken struct {
 	timeout bool
 	error   bool
+	result  map[string]byte
+}
+
+func (t *fakeToken) Result() map[string]byte {
+	return t.result
 }
 
 func (t *fakeToken) Wait() bool {
@@ -38,6 +43,7 @@ type fakeClient struct {
 	connectionOpen        bool
 	tokenTimeout          bool
 	tokenError            bool
+	subscribeResult       map[string]byte
 	disconnectInvocations int
 }
 
@@ -62,7 +68,7 @@ func (c *fakeClient) Publish(string, byte, bool, interface{}) pahomqtt.Token {
 }
 
 func (c *fakeClient) Subscribe(string, byte, pahomqtt.MessageHandler) pahomqtt.Token {
-	return &fakeToken{timeout: c.tokenTimeout, error: c.tokenError}
+	return &fakeToken{timeout: c.tokenTimeout, error: c.tokenError, result: c.subscribeResult}
 }
 
 func (c *fakeClient) SubscribeMultiple(map[string]byte, pahomqtt.MessageHandler) pahomqtt.Token {
@@ -139,6 +145,19 @@ func Test_listener_Subscribe(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "Subscription granted",
+			fields: fields{
+				c: &fakeClient{subscribeResult: map[string]byte{"topic": 0}},
+			},
+		},
+		{
+			name: "Subscription refused by the broker",
+			fields: fields{
+				c: &fakeClient{subscribeResult: map[string]byte{"topic": subscribeFailureCode}},
+			},
+			wantErr: true,
+		},
+		{
 			name: "Subscription errored",
 			fields: fields{
 				c: &fakeClient{tokenError: true},
@@ -192,5 +211,59 @@ func Test_listener_Check(t *testing.T) {
 				t.Errorf("Check() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func Test_connectionLostHandler(t *testing.T) {
+	lost := make(chan error, 1)
+	l := &listener{lost: lost}
+	handler := newConnectionLostHandler(lost)
+
+	select {
+	case err := <-l.ConnectionLost():
+		t.Fatalf("ConnectionLost() = %v before the connection was lost", err)
+	default:
+	}
+
+	wantErr := errors.New("EOF")
+	handler(&fakeClient{}, wantErr)
+	// a second notification must not block the client goroutine
+	handler(&fakeClient{}, errors.New("another"))
+
+	select {
+	case err := <-l.ConnectionLost():
+		if !errors.Is(err, wantErr) {
+			t.Errorf("ConnectionLost() = %v, want %v", err, wantErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ConnectionLost() did not report the lost connection")
+	}
+}
+
+func Test_connectionLostHandler_NilError(t *testing.T) {
+	lost := make(chan error, 1)
+	newConnectionLostHandler(lost)(&fakeClient{}, nil)
+	if err := <-lost; err == nil {
+		t.Error("expected a non nil error")
+	}
+}
+
+func TestListenerOptions(t *testing.T) {
+	opts := pahomqtt.NewClientOptions()
+	for _, o := range []ListenerOption{
+		WithTimeout(4 * time.Second),
+		WithKeepAlive(45 * time.Second),
+		WithPingTimeout(12 * time.Second),
+	} {
+		o(opts)
+	}
+	if opts.ConnectTimeout != 4*time.Second {
+		t.Errorf("ConnectTimeout = %v, want 4s", opts.ConnectTimeout)
+	}
+	if opts.KeepAlive != 45 {
+		t.Errorf("KeepAlive = %v, want 45", opts.KeepAlive)
+	}
+	if opts.PingTimeout != 12*time.Second {
+		t.Errorf("PingTimeout = %v, want 12s", opts.PingTimeout)
 	}
 }

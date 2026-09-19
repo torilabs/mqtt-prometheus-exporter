@@ -107,9 +107,11 @@ func TestParse(t *testing.T) {
 					Port: 8079,
 				},
 				MQTT: MQTT{
-					Host:    "",
-					Port:    9641,
-					Timeout: time.Second * 3,
+					Host:        "",
+					Port:        9641,
+					Timeout:     time.Second * 3,
+					KeepAlive:   time.Second * 30,
+					PingTimeout: time.Second * 10,
 				},
 				Cache: Cache{
 					Expiration: time.Second * 60,
@@ -130,6 +132,8 @@ mqtt:
   username: "user"
   password: "passwd"
   timeout: 4s
+  keep_alive: 20s
+  ping_timeout: 6s
 cache:
   expiration: 100s
 metrics:
@@ -155,11 +159,13 @@ metrics:
 					Port: 8077,
 				},
 				MQTT: MQTT{
-					Host:     "ws://192.168.1.1",
-					Port:     9001,
-					Username: "user",
-					Password: "passwd",
-					Timeout:  time.Second * 4,
+					Host:        "ws://192.168.1.1",
+					Port:        9001,
+					Username:    "user",
+					Password:    "passwd",
+					Timeout:     time.Second * 4,
+					KeepAlive:   time.Second * 20,
+					PingTimeout: time.Second * 6,
 				},
 				Cache: Cache{
 					Expiration: time.Second * 100,
@@ -204,7 +210,7 @@ metrics:
 			wantCfg: Configuration{
 				Logging: Logger{Level: "info"},
 				Server:  Server{Port: 8079},
-				MQTT:    MQTT{Port: 9641, Timeout: time.Second * 3},
+				MQTT:    MQTT{Port: 9641, Timeout: time.Second * 3, KeepAlive: time.Second * 30, PingTimeout: time.Second * 10},
 				Cache:   Cache{Expiration: time.Second * 60},
 				Metrics: []Metric{
 					{
@@ -448,6 +454,31 @@ func TestMetric_ValidateLabels(t *testing.T) {
 			}
 			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 				t.Errorf("ValidateLabels() error = %v, want it to contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMQTTValidation(t *testing.T) {
+	valid := MQTT{Timeout: time.Second * 3, KeepAlive: time.Second * 30, PingTimeout: time.Second * 10}
+	tests := []struct {
+		name    string
+		mutate  func(m *MQTT)
+		wantErr bool
+	}{
+		{name: "valid", mutate: func(*MQTT) {}},
+		{name: "zero timeout", mutate: func(m *MQTT) { m.Timeout = 0 }, wantErr: true},
+		{name: "zero ping timeout", mutate: func(m *MQTT) { m.PingTimeout = 0 }, wantErr: true},
+		{name: "zero keep alive", mutate: func(m *MQTT) { m.KeepAlive = 0 }, wantErr: true},
+		{name: "keep alive below one second", mutate: func(m *MQTT) { m.KeepAlive = time.Millisecond * 500 }, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := valid
+			tt.mutate(&m)
+			cfg := Configuration{MQTT: m}
+			if err := validator.NewValidator().Validate(&cfg); (err != nil) != tt.wantErr {
+				t.Errorf("validation error '%v', want %v", err, tt.wantErr)
 			}
 		})
 	}

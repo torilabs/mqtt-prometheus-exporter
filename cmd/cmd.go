@@ -75,7 +75,9 @@ var rootCmd = &cobra.Command{
 			mqtt.WithHostAndPort(cfg.MQTT.Host, cfg.MQTT.Port),
 			mqtt.WithUsername(cfg.MQTT.Username),
 			mqtt.WithPassword(cfg.MQTT.Password),
-			mqtt.WithTimeout(cfg.MQTT.Timeout))
+			mqtt.WithTimeout(cfg.MQTT.Timeout),
+			mqtt.WithKeepAlive(cfg.MQTT.KeepAlive),
+			mqtt.WithPingTimeout(cfg.MQTT.PingTimeout))
 		if err != nil {
 			return err
 		}
@@ -91,13 +93,8 @@ var rootCmd = &cobra.Command{
 		}
 
 		for topic, handlers := range topicHandlers {
-			var handler pahomqtt.MessageHandler
-			if len(handlers) == 1 {
-				handler = handlers[0]
-			} else {
-				handler = mqtt.NewDelegatingMessageHandler(handlers...)
-			}
-			if err := l.Subscribe(topic, handler); err != nil {
+			// the delegating handler also protects the process from a panic of a single handler
+			if err := l.Subscribe(topic, mqtt.NewDelegatingMessageHandler(handlers...)); err != nil {
 				return err
 			}
 		}
@@ -108,12 +105,14 @@ var rootCmd = &cobra.Command{
 		startServer(checkers)
 
 		// wait for program to terminate
-		<-sigs
-
-		// shutdown
-		log.Logger.Info("Shutting down the service.")
-
-		return nil
+		select {
+		case <-sigs:
+			log.Logger.Info("Shutting down the service.")
+			return nil
+		case err := <-l.ConnectionLost():
+			// the connection is not restored, terminate so the orchestrator restarts the service
+			return fmt.Errorf("MQTT connection lost: %w", err)
+		}
 	},
 }
 

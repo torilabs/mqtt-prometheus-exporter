@@ -57,7 +57,12 @@ type MQTT struct {
 	Port     int
 	Username string
 	Password string
-	Timeout  time.Duration
+	// Timeout of connection and subscription to the broker.
+	Timeout time.Duration `validate:"min=1"`
+	// KeepAlive is the interval of keep alive messages sent to the broker.
+	KeepAlive time.Duration `mapstructure:"keep_alive" validate:"min=1000000000"`
+	// PingTimeout is how long a keep alive response is awaited before the connection is considered lost.
+	PingTimeout time.Duration `mapstructure:"ping_timeout" validate:"min=1"`
 }
 
 // Cache configuration structure.
@@ -164,6 +169,8 @@ func setDefaults() {
 
 	viper.SetDefault("mqtt.port", 9641)
 	viper.SetDefault("mqtt.timeout", "3s")
+	viper.SetDefault("mqtt.keep_alive", "30s")
+	viper.SetDefault("mqtt.ping_timeout", "10s")
 
 	viper.SetDefault("cache.expiration", "60s")
 }
