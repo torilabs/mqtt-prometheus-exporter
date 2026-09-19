@@ -40,6 +40,31 @@ metrics:
 
 The exporter will subscribe once to `/home/overview` and extract both metrics from each received message, making it efficient for complex JSON payloads.
 
+**Boolean values in JSON messages**
+
+The value read by `json_field` is converted to a number:
+1. numbers and numeric strings (`12.5`, `"12.5"`, `"1"`) are used as they are,
+2. otherwise a boolean is converted to `1` (true) or `0` (false): JSON `true`/`false` and the strings `true`/`false`, `t`/`f`, `yes`/`no` and `on`/`off`, in any case and ignoring surrounding spaces,
+3. any other value (`null`, an array, an object, other text) is skipped and a warning is logged.
+
+No configuration is needed. With `{"battery_low": true, "state": "OFF"}`:
+```yaml
+metrics:
+  - mqtt_topic: "/home/sensor1"
+    prom_name: "battery_low"
+    type: "gauge"
+    json_field: "battery_low"
+  - mqtt_topic: "/home/sensor1"
+    prom_name: "sensor_on"
+    type: "gauge"
+    json_field: "state"
+```
+```
+battery_low{topic="/home/sensor1"} 1
+sensor_on{topic="/home/sensor1"} 0
+```
+A value converted as a boolean is logged at `DEBUG` level only. A text field that is not a number or a boolean (e.g. `"maybe"`) is still reported as a warning.
+
 **Labels from JSON message properties**
 
 Use `json_labels` (together with `json_field`) to turn properties of a JSON message into Prometheus labels. It maps a label name to a dotted path of the property in the message, e.g. `{"temp": 21.5, "location": {"room": "kitchen"}, "meta": {"floor": 2}}`:

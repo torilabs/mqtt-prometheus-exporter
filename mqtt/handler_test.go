@@ -248,6 +248,74 @@ func Test_messageHandler(t *testing.T) {
 			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"room": "kitchen"}`)},
 			wantObserved: false,
 		},
+		{
+			name:            "JSON boolean true converted to 1",
+			args:            args{metric: config.Metric{MqttTopic: "/topic", JSONField: "door.open"}},
+			msg:             fakeMessage{topic: "/topic", payload: []byte(`{"door": {"open": true}}`)},
+			wantObserved:    true,
+			wantValue:       1,
+			wantLabelValues: []string{"/topic"},
+		},
+		{
+			name:            "JSON boolean false converted to 0",
+			args:            args{metric: config.Metric{MqttTopic: "/topic", JSONField: "open"}},
+			msg:             fakeMessage{topic: "/topic", payload: []byte(`{"open": false}`)},
+			wantObserved:    true,
+			wantValue:       0,
+			wantLabelValues: []string{"/topic"},
+		},
+		{
+			name:            "JSON string boolean ON converted to 1",
+			args:            args{metric: config.Metric{MqttTopic: "/topic", JSONField: "state"}},
+			msg:             fakeMessage{topic: "/topic", payload: []byte(`{"state": "ON"}`)},
+			wantObserved:    true,
+			wantValue:       1,
+			wantLabelValues: []string{"/topic"},
+		},
+		{
+			name:            "JSON string boolean no converted to 0",
+			args:            args{metric: config.Metric{MqttTopic: "/topic", JSONField: "state"}},
+			msg:             fakeMessage{topic: "/topic", payload: []byte(`{"state": " No "}`)},
+			wantObserved:    true,
+			wantValue:       0,
+			wantLabelValues: []string{"/topic"},
+		},
+		{
+			name: "JSON boolean combined with topic and JSON labels",
+			args: args{
+				metric: config.Metric{
+					MqttTopic:   "/home/+/state",
+					TopicLabels: map[string]int{"device": 2},
+					JSONField:   "door.open",
+					JSONLabels:  map[string]string{"room": "location.room", "armed": "armed"},
+				},
+			},
+			msg: fakeMessage{
+				topic:   "/home/door1/state",
+				payload: []byte(`{"door": {"open": "yes"}, "location": {"room": "hall"}, "armed": true}`),
+			},
+			wantObserved:    true,
+			wantValue:       1,
+			wantLabelValues: []string{"/home/door1/state", "door1", "true", "hall"},
+		},
+		{
+			name:         "JSON string not a boolean failed to parse",
+			args:         args{metric: config.Metric{MqttTopic: "/topic", JSONField: "state"}},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"state": "maybe"}`)},
+			wantObserved: false,
+		},
+		{
+			name:         "JSON null value failed to parse",
+			args:         args{metric: config.Metric{MqttTopic: "/topic", JSONField: "state"}},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"state": null}`)},
+			wantObserved: false,
+		},
+		{
+			name:         "JSON array value failed to parse",
+			args:         args{metric: config.Metric{MqttTopic: "/topic", JSONField: "state"}},
+			msg:          fakeMessage{topic: "/topic", payload: []byte(`{"state": [true]}`)},
+			wantObserved: false,
+		},
 	}
 	for _, tt := range tests {
 		for i := range 100 {

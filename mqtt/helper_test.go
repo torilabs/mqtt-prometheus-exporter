@@ -130,3 +130,55 @@ func Test_findInJson(t *testing.T) {
 		})
 	}
 }
+
+func Test_jsonValueToFloat(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       interface{}
+		want        float64
+		wantBoolean bool
+		wantErr     bool
+	}{
+		{name: "number", value: 12.5, want: 12.5},
+		{name: "negative number", value: -5.0, want: -5},
+		{name: "numeric string", value: "12.5", want: 12.5},
+		{name: "numeric string 1 stays numeric", value: "1", want: 1},
+		{name: "numeric string 0 stays numeric", value: "0", want: 0},
+		{name: "number 2 stays numeric", value: 2.0, want: 2},
+		{name: "boolean true", value: true, want: 1, wantBoolean: true},
+		{name: "boolean false", value: false, want: 0, wantBoolean: true},
+		{name: "string true", value: "true", want: 1, wantBoolean: true},
+		{name: "string false", value: "false", want: 0, wantBoolean: true},
+		{name: "string TRUE", value: "TRUE", want: 1, wantBoolean: true},
+		{name: "string t", value: "t", want: 1, wantBoolean: true},
+		{name: "string F", value: "F", want: 0, wantBoolean: true},
+		{name: "string yes", value: "Yes", want: 1, wantBoolean: true},
+		{name: "string no", value: "no", want: 0, wantBoolean: true},
+		{name: "string on", value: "On", want: 1, wantBoolean: true},
+		{name: "string off with spaces", value: "  OFF ", want: 0, wantBoolean: true},
+		{name: "unknown string", value: "maybe", wantErr: true},
+		{name: "empty string", value: "", wantErr: true},
+		{name: "blank string", value: "  ", wantErr: true},
+		{name: "text", value: "Tokyo", wantErr: true},
+		{name: "null", value: nil, wantErr: true},
+		{name: "object", value: map[string]interface{}{"a": 1.0}, wantErr: true},
+		{name: "array", value: []interface{}{true}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, isBoolean, err := jsonValueToFloat(tt.value)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("jsonValueToFloat() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if got != tt.want {
+				t.Errorf("jsonValueToFloat() = %v, want %v", got, tt.want)
+			}
+			if isBoolean != tt.wantBoolean {
+				t.Errorf("jsonValueToFloat() isBoolean = %v, want %v", isBoolean, tt.wantBoolean)
+			}
+		})
+	}
+}
