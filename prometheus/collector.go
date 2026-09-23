@@ -1,7 +1,8 @@
 package prometheus
 
 import (
-	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	gocache "github.com/patrickmn/go-cache"
@@ -48,8 +49,19 @@ func (c *memoryCachedCollector) Observe(metric config.Metric, topic string, v fl
 		log.Logger.With(zap.Error(err)).Warnf("Creation of prometheus metric failed.")
 		return
 	}
-	key := fmt.Sprintf("%s|%s", metric.PrometheusName, topic)
-	c.cache.SetDefault(key, &collectorEntry{m: m, ts: time.Now()})
+	c.cache.SetDefault(cacheKey(metric.PrometheusName, topic, labelValues), &collectorEntry{m: m, ts: time.Now()})
+}
+
+// cacheKey identifies a series by the metric name, the topic and all variable label values.
+// Every part is length-prefixed so that different label values can never produce the same key.
+func cacheKey(name, topic string, labelValues []string) string {
+	var sb strings.Builder
+	for _, part := range append([]string{name, topic}, labelValues...) {
+		sb.WriteString(strconv.Itoa(len(part)))
+		sb.WriteByte(':')
+		sb.WriteString(part)
+	}
+	return sb.String()
 }
 
 func (c *memoryCachedCollector) Describe(ch chan<- *prometheus.Desc) {

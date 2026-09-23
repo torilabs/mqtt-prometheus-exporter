@@ -1,8 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,6 +22,19 @@ func (tl TopicLabels) KeysInOrder() []string {
 	for k := range tl {
 		keys[i] = k
 		i++
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// JSONLabels maps a prometheus label name to a dotted path of a property in the JSON message.
+type JSONLabels map[string]string
+
+// KeysInOrder sort keys always the same way.
+func (jl JSONLabels) KeysInOrder() []string {
+	keys := make([]string, 0, len(jl))
+	for k := range jl {
+		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	return keys
@@ -41,7 +57,12 @@ type MQTT struct {
 	Port     int
 	Username string
 	Password string
-	Timeout  time.Duration
+	// Timeout of connection and subscription to the broker.
+	Timeout time.Duration `validate:"min=1"`
+	// KeepAlive is the interval of keep alive messages sent to the broker.
+	KeepAlive time.Duration `mapstructure:"keep_alive" validate:"min=1000000000"`
+	// PingTimeout is how long a keep alive response is awaited before the connection is considered lost.
+	PingTimeout time.Duration `mapstructure:"ping_timeout" validate:"min=1"`
 }
 
 // Cache configuration structure.
@@ -58,12 +79,47 @@ type Metric struct {
 	ConstantLabels prometheus.Labels `mapstructure:"const_labels"`
 	TopicLabels    TopicLabels       `mapstructure:"topic_labels"`
 	JSONField      string            `mapstructure:"json_field"`
+	JSONLabels     JSONLabels        `mapstructure:"json_labels"`
+}
+
+// topicLabelName is the name of the label always added to metrics.
+const topicLabelName = "topic"
+
+var labelNameRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// ValidateLabels checks that json_labels can be used together with the rest of the metric configuration.
+func (m *Metric) ValidateLabels() error {
+	if len(m.JSONLabels) == 0 {
+		return nil
+	}
+	if m.JSONField == "" {
+		return errors.New("json_labels require json_field to be set")
+	}
+	for _, name := range m.JSONLabels.KeysInOrder() {
+		if !labelNameRegexp.MatchString(name) || strings.HasPrefix(name, "__") {
+			return fmt.Errorf("json label name %q is not a valid prometheus label name", name)
+		}
+		if strings.TrimSpace(m.JSONLabels[name]) == "" {
+			return fmt.Errorf("json label %q has an empty JSON property path", name)
+		}
+		if name == topicLabelName {
+			return fmt.Errorf("json label name %q collides with the built-in %q label", name, topicLabelName)
+		}
+		if _, ok := m.ConstantLabels[name]; ok {
+			return fmt.Errorf("json label name %q collides with a constant label", name)
+		}
+		if _, ok := m.TopicLabels[name]; ok {
+			return fmt.Errorf("json label name %q collides with a topic label", name)
+		}
+	}
+	return nil
 }
 
 // PrometheusDescription constructs description.
 func (m *Metric) PrometheusDescription() *prometheus.Desc {
-	varLabels := []string{"topic"}
+	varLabels := []string{topicLabelName}
 	varLabels = append(varLabels, m.TopicLabels.KeysInOrder()...)
+	varLabels = append(varLabels, m.JSONLabels.KeysInOrder()...)
 
 	return prometheus.NewDesc(
 		m.PrometheusName, m.Help, varLabels, m.ConstantLabels,
@@ -113,6 +169,8 @@ func setDefaults() {
 
 	viper.SetDefault("mqtt.port", 9641)
 	viper.SetDefault("mqtt.timeout", "3s")
+	viper.SetDefault("mqtt.keep_alive", "30s")
+	viper.SetDefault("mqtt.ping_timeout", "10s")
 
 	viper.SetDefault("cache.expiration", "60s")
 }

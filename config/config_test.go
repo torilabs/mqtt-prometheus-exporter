@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,16 @@ func TestMetric_PrometheusDescription(t *testing.T) {
 				},
 			},
 			want: "Desc{fqName: \"name\", help: \"help msg\", constLabels: {const_label=\"label_value\"}, variableLabels: {topic,device}}",
+		},
+		{
+			name: "JSON labels are appended after topic labels in alphabetical order",
+			metric: Metric{
+				PrometheusName: "name",
+				Help:           "help msg",
+				TopicLabels:    map[string]int{"device": 1, "area": 2},
+				JSONLabels:     map[string]string{"zone": "location.zone", "firmware": "meta.fw"},
+			},
+			want: "Desc{fqName: \"name\", help: \"help msg\", constLabels: {}, variableLabels: {topic,area,device,firmware,zone}}",
 		},
 	}
 	for _, tt := range tests {
@@ -96,9 +107,11 @@ func TestParse(t *testing.T) {
 					Port: 8079,
 				},
 				MQTT: MQTT{
-					Host:    "",
-					Port:    9641,
-					Timeout: time.Second * 3,
+					Host:        "",
+					Port:        9641,
+					Timeout:     time.Second * 3,
+					KeepAlive:   time.Second * 30,
+					PingTimeout: time.Second * 10,
 				},
 				Cache: Cache{
 					Expiration: time.Second * 60,
@@ -119,6 +132,8 @@ mqtt:
   username: "user"
   password: "passwd"
   timeout: 4s
+  keep_alive: 20s
+  ping_timeout: 6s
 cache:
   expiration: 100s
 metrics:
@@ -144,11 +159,13 @@ metrics:
 					Port: 8077,
 				},
 				MQTT: MQTT{
-					Host:     "ws://192.168.1.1",
-					Port:     9001,
-					Username: "user",
-					Password: "passwd",
-					Timeout:  time.Second * 4,
+					Host:        "ws://192.168.1.1",
+					Port:        9001,
+					Username:    "user",
+					Password:    "passwd",
+					Timeout:     time.Second * 4,
+					KeepAlive:   time.Second * 20,
+					PingTimeout: time.Second * 6,
 				},
 				Cache: Cache{
 					Expiration: time.Second * 100,
@@ -171,6 +188,42 @@ metrics:
 						PrometheusName: "rpi",
 						MqttTopic:      "+/home/rpi/#",
 						MetricType:     "gauge",
+					},
+				},
+			},
+		},
+		{
+			name: "JSON labels configuration",
+			rawCfg: `metrics:
+  - mqtt_topic: "/home/overview"
+    prom_name: "sensor_count"
+    json_field: "total.count"
+    json_labels:
+      room: "location.room"
+      firmware: "meta.fw"
+  - mqtt_topic: "/home/other"
+    prom_name: "other"
+    json_field: "value"
+    json_labels:
+      - room: "room"
+`,
+			wantCfg: Configuration{
+				Logging: Logger{Level: "info"},
+				Server:  Server{Port: 8079},
+				MQTT:    MQTT{Port: 9641, Timeout: time.Second * 3, KeepAlive: time.Second * 30, PingTimeout: time.Second * 10},
+				Cache:   Cache{Expiration: time.Second * 60},
+				Metrics: []Metric{
+					{
+						PrometheusName: "sensor_count",
+						MqttTopic:      "/home/overview",
+						JSONField:      "total.count",
+						JSONLabels:     map[string]string{"room": "location.room", "firmware": "meta.fw"},
+					},
+					{
+						PrometheusName: "other",
+						MqttTopic:      "/home/other",
+						JSONField:      "value",
+						JSONLabels:     map[string]string{"room": "room"},
 					},
 				},
 			},
@@ -301,5 +354,132 @@ func TestTopicLabels_KeysInOrder(t *testing.T) {
 		if got := tl.KeysInOrder(); !reflect.DeepEqual(got, refValue) {
 			t.Errorf("KeysInOrder() = %v, want %v", got, refValue)
 		}
+	}
+}
+
+func TestJSONLabels_KeysInOrder(t *testing.T) {
+	jl := JSONLabels{"zone": "a.b", "area": "c", "room": "d", "firmware": "e"}
+	want := []string{"area", "firmware", "room", "zone"}
+	for range 100 {
+		if got := jl.KeysInOrder(); !reflect.DeepEqual(got, want) {
+			t.Errorf("KeysInOrder() = %v, want %v", got, want)
+		}
+	}
+	if got := (JSONLabels)(nil).KeysInOrder(); len(got) != 0 {
+		t.Errorf("KeysInOrder() of nil = %v, want empty", got)
+	}
+}
+
+func TestMetric_ValidateLabels(t *testing.T) {
+	tests := []struct {
+		name    string
+		metric  Metric
+		wantErr string
+	}{
+		{
+			name:   "no JSON labels",
+			metric: Metric{TopicLabels: map[string]int{"topic": 1}},
+		},
+		{
+			name: "valid JSON labels",
+			metric: Metric{
+				JSONField:      "value",
+				ConstantLabels: map[string]string{"const": "x"},
+				TopicLabels:    map[string]int{"device": 1},
+				JSONLabels:     map[string]string{"room": "location.room", "_private1": "a"},
+			},
+		},
+		{
+			name:    "JSON labels without json_field",
+			metric:  Metric{JSONLabels: map[string]string{"room": "room"}},
+			wantErr: "json_labels require json_field",
+		},
+		{
+			name:    "label name with invalid character",
+			metric:  Metric{JSONField: "v", JSONLabels: map[string]string{"my-label": "a"}},
+			wantErr: "not a valid prometheus label name",
+		},
+		{
+			name:    "label name starting with a number",
+			metric:  Metric{JSONField: "v", JSONLabels: map[string]string{"1label": "a"}},
+			wantErr: "not a valid prometheus label name",
+		},
+		{
+			name:    "empty label name",
+			metric:  Metric{JSONField: "v", JSONLabels: map[string]string{"": "a"}},
+			wantErr: "not a valid prometheus label name",
+		},
+		{
+			name:    "reserved label name prefix",
+			metric:  Metric{JSONField: "v", JSONLabels: map[string]string{"__name": "a"}},
+			wantErr: "not a valid prometheus label name",
+		},
+		{
+			name:    "empty property path",
+			metric:  Metric{JSONField: "v", JSONLabels: map[string]string{"room": " "}},
+			wantErr: "empty JSON property path",
+		},
+		{
+			name:    "collision with topic label",
+			metric:  Metric{JSONField: "v", JSONLabels: map[string]string{"topic": "a"}},
+			wantErr: "built-in",
+		},
+		{
+			name: "collision with constant label",
+			metric: Metric{
+				JSONField:      "v",
+				ConstantLabels: map[string]string{"room": "x"},
+				JSONLabels:     map[string]string{"room": "a"},
+			},
+			wantErr: "constant label",
+		},
+		{
+			name: "collision with topic labels",
+			metric: Metric{
+				JSONField:   "v",
+				TopicLabels: map[string]int{"room": 1},
+				JSONLabels:  map[string]string{"room": "a"},
+			},
+			wantErr: "topic label",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.metric.ValidateLabels()
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("ValidateLabels() unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("ValidateLabels() error = %v, want it to contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMQTTValidation(t *testing.T) {
+	valid := MQTT{Timeout: time.Second * 3, KeepAlive: time.Second * 30, PingTimeout: time.Second * 10}
+	tests := []struct {
+		name    string
+		mutate  func(m *MQTT)
+		wantErr bool
+	}{
+		{name: "valid", mutate: func(*MQTT) {}},
+		{name: "zero timeout", mutate: func(m *MQTT) { m.Timeout = 0 }, wantErr: true},
+		{name: "zero ping timeout", mutate: func(m *MQTT) { m.PingTimeout = 0 }, wantErr: true},
+		{name: "zero keep alive", mutate: func(m *MQTT) { m.KeepAlive = 0 }, wantErr: true},
+		{name: "keep alive below one second", mutate: func(m *MQTT) { m.KeepAlive = time.Millisecond * 500 }, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := valid
+			tt.mutate(&m)
+			cfg := Configuration{MQTT: m}
+			if err := validator.NewValidator().Validate(&cfg); (err != nil) != tt.wantErr {
+				t.Errorf("validation error '%v', want %v", err, tt.wantErr)
+			}
+		})
 	}
 }
