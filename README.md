@@ -40,6 +40,57 @@ metrics:
 
 The exporter will subscribe once to `/home/overview` and extract both metrics from each received message, making it efficient for complex JSON payloads.
 
+**Boolean values in JSON messages**
+
+The value read by `json_field` is converted to a number:
+1. numbers and numeric strings (`12.5`, `"12.5"`, `"1"`) are used as they are,
+2. otherwise a boolean is converted to `1` (true) or `0` (false): JSON `true`/`false` and the strings `true`/`false`, `t`/`f`, `yes`/`no` and `on`/`off`, in any case and ignoring surrounding spaces,
+3. any other value (`null`, an array, an object, other text) is skipped and a warning is logged.
+
+No configuration is needed. With `{"battery_low": true, "state": "OFF"}`:
+```yaml
+metrics:
+  - mqtt_topic: "/home/sensor1"
+    prom_name: "battery_low"
+    type: "gauge"
+    json_field: "battery_low"
+  - mqtt_topic: "/home/sensor1"
+    prom_name: "sensor_on"
+    type: "gauge"
+    json_field: "state"
+```
+```
+battery_low{topic="/home/sensor1"} 1
+sensor_on{topic="/home/sensor1"} 0
+```
+A value converted as a boolean is logged at `DEBUG` level only. A text field that is not a number or a boolean (e.g. `"maybe"`) is still reported as a warning.
+
+**Labels from JSON message properties**
+
+Use `json_labels` (together with `json_field`) to turn properties of a JSON message into Prometheus labels. It maps a label name to a dotted path of the property in the message, e.g. `{"temp": 21.5, "location": {"room": "kitchen"}, "meta": {"floor": 2}}`:
+```yaml
+metrics:
+  - mqtt_topic: "/home/+/state"
+    prom_name: "temperature"
+    type: "gauge"
+    json_field: "temp"
+    topic_labels:
+      - device: 2
+    json_labels:
+      room: "location.room"
+      floor: "meta.floor"
+```
+The message above received on `/home/sensor1/state` produces:
+```
+temperature{device="sensor1",floor="2",room="kitchen",topic="/home/sensor1/state"} 21.5 1601809393358
+```
+- Label order is deterministic: `topic`, topic labels, then JSON labels, each sorted alphabetically by label name.
+- Strings, numbers and booleans are accepted. Numbers are written without exponent (`2`, `12.5`) and booleans as `true`/`false`. Very large integers may lose precision, as JSON numbers are parsed as 64-bit floats.
+- If a configured property is missing, `null`, an array or an object, the message is skipped and a warning is logged.
+- Messages from the same topic with different JSON label values are exported as separate series; messages with identical label values update the existing series.
+- A JSON label name must be a valid Prometheus label name, must not start with `__` and must not collide with `topic`, `const_labels` or `topic_labels`. `json_labels` requires `json_field`. Invalid configuration prevents the exporter from starting.
+- Every distinct combination of label values creates a new series. Use only properties with a small, bounded set of values (e.g. room, firmware version) and never identifiers, timestamps or free text, otherwise anyone able to publish to the broker can inflate memory usage. Series expire according to `cache.expiration`.
+
 **Example of metric**
 ```
 # HELP temperature temperature measured on home sensors
@@ -83,8 +134,12 @@ mqtt:
   username: ""
   # password for connection to MQTT broker
   password: ""
-  #connection timeout - default: 3s
+  # timeout of the connection and of topic subscriptions - default: 3s
   timeout: 3s
+  # interval of keep alive messages sent to the broker, at least 1s - default: 30s
+  keep_alive: 30s
+  # how long a keep alive response is awaited before the connection is considered lost - default: 10s
+  ping_timeout: 10s
 
 # internal cache holding collected metrics configuration
 cache:
@@ -123,10 +178,24 @@ metrics:
     # using json_field you can consume message in a valid JSON format
     # value is then parsed from JSON tree by the given path/field
     json_field: "total.count"
+    # using json_labels you can add labels from properties of the JSON message
+    # label name -> path/field of the property (string, number or boolean)
+    json_labels:
+      room: "location.room"
 ```
 
 Minimal config file can contain only `metrics` definition. Default values will be used for logging level (`INFO`), HTTP server port (`8079`) and MQTT broker URI (`:9641`).
 
+
+## Resilience
+
+The exporter does not try to reconnect to the MQTT broker. Subscriptions are not restored by a reconnection, so a client that reconnects would look healthy while receiving nothing. Instead, the exporter terminates with a non-zero exit code when:
+- the broker can not be reached at startup, or a subscription is refused by the broker,
+- the connection to the broker is lost (detected by a closed connection or by a missing keep alive response within `mqtt.ping_timeout`).
+
+It is meant to run under an orchestrator that restarts it, e.g. Kubernetes (`restartPolicy: Always`, the default of a Deployment). Collected values are kept in memory only, so they are dropped on restart. Keep in mind that Kubernetes delays repeated restarts (`CrashLoopBackOff`, up to 5 minutes) when the broker stays unavailable for a long time.
+
+A message handler that panics does not stop the exporter: the panic is logged and other handlers keep working.
 
 ## Build & Run
 To build the binary run:
@@ -140,8 +209,12 @@ Run the binary with optional `config` parameter provided:
 ```
 If you don't provide `config` parameter, application will search on default path: `./config.yaml`.
 
+At startup the exporter logs its version, e.g. `Starting mqtt-prometheus-exporter version v1.2.3 (commit 0123456789ab, go1.25.0, linux/amd64).`
+The version is set at build time: `make build` uses `git describe` unless `VERSION` is provided (`make build VERSION=v1.2.3`), and it shows `dev` for a plain `go build`.
+
 ## Docker image
 Public docker image is available for multiple platforms: https://hub.docker.com/r/torilabs/mqtt-prometheus-exporter
 ```
 docker run -it -p 8079:8079 -v $(pwd)/my-config.yaml:/config.yaml --rm torilabs/mqtt-prometheus-exporter:latest
 ```
+To build the image yourself with a version: `docker build --build-arg VERSION=v1.2.3 -t mqtt-prometheus-exporter .`

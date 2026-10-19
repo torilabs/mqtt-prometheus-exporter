@@ -3,6 +3,9 @@ export GO111MODULE := on
 export CGO_ENABLED := 0
 
 EXECUTABLE = mqtt-prometheus-exporter
+# version reported at startup: taken from the environment (e.g. docker build arg), else from git
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS = -X github.com/torilabs/mqtt-prometheus-exporter/version.Version=$(VERSION)
 INTEGRATION_TEST_PATH ?= ./it
 
 all: clean check test build
@@ -32,7 +35,7 @@ test: prepare
 
 build:
 	@echo "Running build"
-	go build -v -o "$(EXECUTABLE)"
+	go build -v -ldflags "$(LDFLAGS)" -o "$(EXECUTABLE)"
 
 clean:
 	@echo "Running clean"

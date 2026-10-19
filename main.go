@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/torilabs/mqtt-prometheus-exporter/cmd"
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 	"go.uber.org/zap"
@@ -9,5 +11,6 @@ import (
 func main() {
 	if err := cmd.Execute(); err != nil {
 		log.Logger.With(zap.Error(err)).Error("Terminating the service.")
+		os.Exit(1)
 	}
 }

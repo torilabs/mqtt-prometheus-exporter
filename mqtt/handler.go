@@ -38,13 +38,7 @@ func (h *messageHandler) getMessageHandler() pahomqtt.MessageHandler {
 			log.Logger.With(zap.Error(err)).Warnf("Got data with unexpected value '%s' and failed to parse to float.", strValue)
 			return
 		}
-		labelCount := 1 + len(h.metric.TopicLabels)
-		labelValues := make([]string, 0, labelCount)
-		labelValues = append(labelValues, msg.Topic())
-		for _, tl := range h.metric.TopicLabels.KeysInOrder() {
-			labelValues = append(labelValues, getTopicPart(msg.Topic(), h.metric.TopicLabels[tl]))
-		}
-		h.collector.Observe(h.metric, msg.Topic(), floatValue, labelValues...)
+		h.collector.Observe(h.metric, msg.Topic(), floatValue, h.topicLabelValues(msg.Topic())...)
 	}
 }
 
@@ -58,20 +52,50 @@ func (h *messageHandler) getJSONMessageHandler() pahomqtt.MessageHandler {
 			return
 		}
 
-		labelCount := 1 + len(h.metric.TopicLabels)
-		labelValues := make([]string, 0, labelCount)
-		labelValues = append(labelValues, msg.Topic())
-		for _, tl := range h.metric.TopicLabels.KeysInOrder() {
-			labelValues = append(labelValues, getTopicPart(msg.Topic(), h.metric.TopicLabels[tl]))
-		}
-
 		if value, ok := findInJSON(jsonMap, h.metric.JSONField); ok {
-			floatValue, err := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
+			floatValue, isBoolean, err := jsonValueToFloat(value)
 			if err != nil {
-				log.Logger.With(zap.Error(err)).Warnf("Got data with unexpected value '%s' and failed to parse to float.", value)
+				log.Logger.With(zap.Error(err)).Warnf("Got data with unexpected value %q and failed to parse to float.", fmt.Sprintf("%v", value))
+				return
+			}
+			if isBoolean {
+				log.Logger.Debugf("Converted boolean value %q of '%s' to %v.", fmt.Sprintf("%v", value), h.metric.JSONField, floatValue)
+			}
+			labelValues, err := h.jsonLabelValues(msg.Topic(), jsonMap)
+			if err != nil {
+				log.Logger.With(zap.Error(err)).Warnf("Skipping observation from '%s' topic.", msg.Topic())
 				return
 			}
 			h.collector.Observe(h.metric, msg.Topic(), floatValue, labelValues...)
 		}
 	}
+}
+
+// topicLabelValues returns the topic followed by the values of topic labels in the alphabetical order of label names.
+func (h *messageHandler) topicLabelValues(topic string) []string {
+	labelValues := make([]string, 0, 1+len(h.metric.TopicLabels)+len(h.metric.JSONLabels))
+	labelValues = append(labelValues, topic)
+	for _, tl := range h.metric.TopicLabels.KeysInOrder() {
+		labelValues = append(labelValues, getTopicPart(topic, h.metric.TopicLabels[tl]))
+	}
+	return labelValues
+}
+
+// jsonLabelValues returns topic label values followed by the values of JSON labels in the alphabetical order of label names.
+// It fails when any configured property is missing, null, an array or an object.
+func (h *messageHandler) jsonLabelValues(topic string, jsonMap map[string]interface{}) ([]string, error) {
+	labelValues := h.topicLabelValues(topic)
+	for _, name := range h.metric.JSONLabels.KeysInOrder() {
+		path := h.metric.JSONLabels[name]
+		raw, found := findInJSON(jsonMap, path)
+		if !found {
+			return nil, fmt.Errorf("property %q for label %q is missing", path, name)
+		}
+		value, ok := labelValueOf(raw)
+		if !ok {
+			return nil, fmt.Errorf("property %q for label %q is null or not a string, number or boolean", path, name)
+		}
+		labelValues = append(labelValues, value)
+	}
+	return labelValues, nil
 }

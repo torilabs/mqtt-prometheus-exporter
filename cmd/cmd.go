@@ -17,6 +17,7 @@ import (
 	"github.com/torilabs/mqtt-prometheus-exporter/log"
 	"github.com/torilabs/mqtt-prometheus-exporter/mqtt"
 	"github.com/torilabs/mqtt-prometheus-exporter/prometheus"
+	"github.com/torilabs/mqtt-prometheus-exporter/version"
 	"go.uber.org/zap"
 	"gopkg.in/validator.v2"
 )
@@ -53,6 +54,12 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		for i := range cfg.Metrics {
+			if err := cfg.Metrics[i].ValidateLabels(); err != nil {
+				return fmt.Errorf("invalid metric '%s': %w", cfg.Metrics[i].PrometheusName, err)
+			}
+		}
+
 		return nil
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {
@@ -60,6 +67,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		defer log.Logger.Sync()
+		log.Logger.Infof("Starting mqtt-prometheus-exporter version %s.", version.String())
 
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -69,7 +77,9 @@ var rootCmd = &cobra.Command{
 			mqtt.WithHostAndPort(cfg.MQTT.Host, cfg.MQTT.Port),
 			mqtt.WithUsername(cfg.MQTT.Username),
 			mqtt.WithPassword(cfg.MQTT.Password),
-			mqtt.WithTimeout(cfg.MQTT.Timeout))
+			mqtt.WithTimeout(cfg.MQTT.Timeout),
+			mqtt.WithKeepAlive(cfg.MQTT.KeepAlive),
+			mqtt.WithPingTimeout(cfg.MQTT.PingTimeout))
 		if err != nil {
 			return err
 		}
@@ -85,13 +95,8 @@ var rootCmd = &cobra.Command{
 		}
 
 		for topic, handlers := range topicHandlers {
-			var handler pahomqtt.MessageHandler
-			if len(handlers) == 1 {
-				handler = handlers[0]
-			} else {
-				handler = mqtt.NewDelegatingMessageHandler(handlers...)
-			}
-			if err := l.Subscribe(topic, handler); err != nil {
+			// the delegating handler also protects the process from a panic of a single handler
+			if err := l.Subscribe(topic, mqtt.NewDelegatingMessageHandler(handlers...)); err != nil {
 				return err
 			}
 		}
@@ -102,12 +107,14 @@ var rootCmd = &cobra.Command{
 		startServer(checkers)
 
 		// wait for program to terminate
-		<-sigs
-
-		// shutdown
-		log.Logger.Info("Shutting down the service.")
-
-		return nil
+		select {
+		case <-sigs:
+			log.Logger.Info("Shutting down the service.")
+			return nil
+		case err := <-l.ConnectionLost():
+			// the connection is not restored, terminate so the orchestrator restarts the service
+			return fmt.Errorf("MQTT connection lost: %w", err)
+		}
 	},
 }
 

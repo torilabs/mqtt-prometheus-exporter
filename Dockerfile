@@ -9,6 +9,7 @@ RUN go mod download
 RUN apk add --no-cache make
 
 COPY . .
+ARG VERSION=dev
 RUN make build
 
 # Runtime image
