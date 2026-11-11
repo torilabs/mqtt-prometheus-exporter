@@ -57,7 +57,7 @@ func (c *fakeClient) Disconnect(uint) {
 	c.disconnectInvocations++
 }
 
-func (c *fakeClient) Publish(string, byte, bool, interface{}) pahomqtt.Token {
+func (c *fakeClient) Publish(string, byte, bool, any) pahomqtt.Token {
 	return nil
 }
 

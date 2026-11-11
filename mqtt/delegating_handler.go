@@ -30,13 +30,13 @@ func (d *DelegatingMessageHandler) handle(client pahomqtt.Client, msg pahomqtt.M
 	log.Logger.Debugf("DelegatingMessageHandler processing message from topic '%s' with %d handlers", msg.Topic(), len(d.handlers))
 
 	for i, handler := range d.handlers {
-		func(idx int, h pahomqtt.MessageHandler) {
+		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Logger.With(zap.Any("panic", r)).Errorf("Handler %d panicked while processing message from topic '%s'", idx, msg.Topic())
+					log.Logger.With(zap.Any("panic", r)).Errorf("Handler %d panicked while processing message from topic '%s'", i, msg.Topic())
 				}
 			}()
-			h(client, msg)
-		}(i, handler)
+			handler(client, msg)
+		}()
 	}
 }
