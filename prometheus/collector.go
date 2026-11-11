@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"fmt"
 	"time"
 
 	gocache "github.com/patrickmn/go-cache"
@@ -32,7 +31,7 @@ func NewCollector(expiration time.Duration, possibleMetrics []config.Metric) Col
 	if len(possibleMetrics) == 0 {
 		log.Logger.Warn("No metrics are configured.")
 	}
-	var descs []*prometheus.Desc
+	descs := make([]*prometheus.Desc, 0, len(possibleMetrics))
 	for _, m := range possibleMetrics {
 		descs = append(descs, m.PrometheusDescription())
 	}
@@ -48,7 +47,7 @@ func (c *memoryCachedCollector) Observe(metric config.Metric, topic string, v fl
 		log.Logger.With(zap.Error(err)).Warnf("Creation of prometheus metric failed.")
 		return
 	}
-	key := fmt.Sprintf("%s|%s", metric.PrometheusName, topic)
+	key := metric.PrometheusName + "|" + topic
 	c.cache.SetDefault(key, &collectorEntry{m: m, ts: time.Now()})
 }
 
