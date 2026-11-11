@@ -73,7 +73,7 @@ func Test_findInJson(t *testing.T) {
 	tests := []struct {
 		name   string
 		args   args
-		want   interface{}
+		want   any
 		wantOk bool
 	}{
 		{
@@ -97,7 +97,7 @@ func Test_findInJson(t *testing.T) {
 			args: args{
 				path: "temperatures",
 			},
-			want:   map[string]interface{}{"out": 12.5, "in": 22.15},
+			want:   map[string]any{"out": 12.5, "in": 22.15},
 			wantOk: true,
 		},
 		{
@@ -120,7 +120,7 @@ func Test_findInJson(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			jsonStr := []byte(`{"city":"Tokyo", "temperatures": {"out": 12.5, "in": 22.15}, "size": -5}`)
-			jsonMap := make(map[string]interface{})
+			jsonMap := make(map[string]any)
 			if err := json.Unmarshal(jsonStr, &jsonMap); err != nil {
 				t.Fatal(err)
 			}
