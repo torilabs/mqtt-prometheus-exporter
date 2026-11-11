@@ -2,7 +2,8 @@ package config
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -14,14 +15,7 @@ type TopicLabels map[string]int
 
 // KeysInOrder sort keys always the same way.
 func (tl TopicLabels) KeysInOrder() []string {
-	keys := make([]string, len(tl))
-	i := 0
-	for k := range tl {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-	return keys
+	return slices.Sorted(maps.Keys(tl))
 }
 
 // Logger configuration structure.

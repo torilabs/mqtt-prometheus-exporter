@@ -15,6 +15,18 @@ import (
 type messageHandler struct {
 	metric    config.Metric
 	collector prometheus.Collector
+	// labelKeys are the sorted topic label names, computed once.
+	labelKeys []string
+}
+
+// labelValues builds label values for the topic: the topic itself followed by topic parts in label order.
+func (h *messageHandler) labelValues(topic string) []string {
+	values := make([]string, 0, 1+len(h.labelKeys))
+	values = append(values, topic)
+	for _, k := range h.labelKeys {
+		values = append(values, getTopicPart(topic, h.metric.TopicLabels[k]))
+	}
+	return values
 }
 
 // NewMessageHandler constructs handler for single metric.
@@ -22,6 +34,7 @@ func NewMessageHandler(metric config.Metric, collector prometheus.Collector) pah
 	mh := &messageHandler{
 		metric:    metric,
 		collector: collector,
+		labelKeys: metric.TopicLabels.KeysInOrder(),
 	}
 	if metric.JSONField != "" {
 		return mh.getJSONMessageHandler()
@@ -38,12 +51,7 @@ func (h *messageHandler) getMessageHandler() pahomqtt.MessageHandler {
 			log.Logger.With(zap.Error(err)).Warnf("Got data with unexpected value '%s' and failed to parse to float.", strValue)
 			return
 		}
-		labelCount := 1 + len(h.metric.TopicLabels)
-		labelValues := make([]string, 0, labelCount)
-		labelValues = append(labelValues, msg.Topic())
-		for _, tl := range h.metric.TopicLabels.KeysInOrder() {
-			labelValues = append(labelValues, getTopicPart(msg.Topic(), h.metric.TopicLabels[tl]))
-		}
+		labelValues := h.labelValues(msg.Topic())
 		h.collector.Observe(h.metric, msg.Topic(), floatValue, labelValues...)
 	}
 }
@@ -52,18 +60,13 @@ func (h *messageHandler) getJSONMessageHandler() pahomqtt.MessageHandler {
 	return func(_ pahomqtt.Client, msg pahomqtt.Message) {
 		log.Logger.Debugf("Received MQTT msg '%s' from '%s' topic. Listener for: '%s'.", msg.Payload(), msg.Topic(), h.metric.MqttTopic)
 
-		jsonMap := make(map[string]interface{})
+		jsonMap := make(map[string]any)
 		if err := json.Unmarshal(msg.Payload(), &jsonMap); err != nil {
 			log.Logger.With(zap.Error(err)).Warnf("Got an invalid JSON value '%s' and failed to unmarshal.", msg.Payload())
 			return
 		}
 
-		labelCount := 1 + len(h.metric.TopicLabels)
-		labelValues := make([]string, 0, labelCount)
-		labelValues = append(labelValues, msg.Topic())
-		for _, tl := range h.metric.TopicLabels.KeysInOrder() {
-			labelValues = append(labelValues, getTopicPart(msg.Topic(), h.metric.TopicLabels[tl]))
-		}
+		labelValues := h.labelValues(msg.Topic())
 
 		if value, ok := findInJSON(jsonMap, h.metric.JSONField); ok {
 			floatValue, err := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
